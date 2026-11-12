@@ -390,35 +390,49 @@ function filteredRows(rows: ExperimentRow[], query: string, facets: FacetSelecti
   return rows.filter((row) => rowMatchesQuery(row, query) && rowMatchesFacets(row, facets, omitFacet));
 }
 
+/** Publication (or lone dataset) of a dataset: the unit counted in "publications" mode. */
+function publicationOf(row: ExperimentRow): string {
+  return row.values.publication[0] ?? row.id;
+}
+
 /**
- * Number of datasets per value of a field, with the filters of the other fields. For the
- * hierarchical fields, a dataset counts for its terms and all their ancestors.
+ * Number of datasets (or of distinct publications) per value of a field, with the filters of
+ * the other fields. For the hierarchical fields, a dataset counts for its terms and all their
+ * ancestors.
  */
 export async function facetCounts(
   field: FacetField,
   query: string,
-  facets: FacetSelection
+  facets: FacetSelection,
+  countBy: CountUnit = "datasets"
 ): Promise<Map<string, number>> {
   const rows = filteredRows((await loadCatalog()).rows, query, facets, field);
-  const counts = new Map<string, number>();
+  const units = new Map<string, Set<string>>();
   for (const row of rows) {
+    const unit = countBy === "publications" ? publicationOf(row) : row.id;
     for (const value of new Set(matchValues(row, field))) {
-      counts.set(value, (counts.get(value) ?? 0) + 1);
+      const set = units.get(value);
+      if (set) set.add(unit);
+      else units.set(value, new Set([unit]));
     }
   }
-  return counts;
+  return new Map([...units].map(([value, set]) => [value, set.size]));
 }
 
 export async function searchRows(
   query: string,
   facets: FacetSelection,
   options: { offset: number; limit: number }
-): Promise<{ rows: ExperimentRow[]; found: number }> {
+): Promise<{ rows: ExperimentRow[]; found: number; publications: number }> {
   const { offset, limit } = options;
   const matched = filteredRows((await loadCatalog()).rows, query, facets).sort(
     (a, b) => b.cell_count - a.cell_count || a.title.localeCompare(b.title)
   );
-  return { found: matched.length, rows: matched.slice(offset, offset + limit) };
+  return {
+    found: matched.length,
+    publications: new Set(matched.map(publicationOf)).size,
+    rows: matched.slice(offset, offset + limit),
+  };
 }
 
 /** Whether a value is in the filter selection of its field (or under a selected term). */
@@ -511,7 +525,7 @@ export async function pivotCounts(
     const cols = [...new Set(axisValues(row, colAxis))];
     if (!rows.length || !cols.length) continue;
     found += 1;
-    const unit = byPublication ? row.values.publication[0] ?? row.id : row.id;
+    const unit = byPublication ? publicationOf(row) : row.id;
     allUnits.add(unit);
     // A dataset (or publication) counts once per row value, column value and cell.
     for (const r of rows) add(rowUnits, r, unit);

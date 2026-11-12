@@ -27,6 +27,7 @@ import {
   topTermsOf,
   visibleValues,
   termLabel,
+  type CountUnit,
   type FacetField,
   type FacetSelection,
   type HierarchicalField,
@@ -41,6 +42,7 @@ type Props = {
   open?: boolean;
   limit?: number;
   onToggle: (value: string) => void;
+  countBy: CountUnit;
 };
 
 /** Values to list: by count, then label. */
@@ -65,6 +67,7 @@ export function FacetList({
   open = true,
   limit = 12,
   onToggle,
+  countBy,
 }: Props) {
   const hierarchical = isHierarchical(field);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
@@ -84,7 +87,7 @@ export function FacetList({
     if (!expanded) return;
     let cancelled = false;
     const handle = window.setTimeout(() => {
-      facetCounts(field, query, facets)
+      facetCounts(field, query, facets, countBy)
         .then((result) => {
           if (!cancelled) {
             setCounts(result);
@@ -99,7 +102,7 @@ export function FacetList({
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [field, query, facets, expanded]);
+  }, [field, query, facets, expanded, countBy]);
 
   const needle = filter.trim().toLowerCase();
   const values = useMemo(() => {

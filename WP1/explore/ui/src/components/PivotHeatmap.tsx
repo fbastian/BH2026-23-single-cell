@@ -40,18 +40,6 @@ import {
 } from "../catalogQuery";
 
 const STORAGE_KEY = "wp1-explore-pivot-axes";
-const COUNT_STORAGE_KEY = "wp1-explore-pivot-count";
-
-/** Initial count unit: URL (?count=publications), else the last choice, else datasets. */
-function loadCountBy(): CountUnit {
-  const fromUrl = new URLSearchParams(window.location.search).get("count");
-  if (fromUrl === "publications" || fromUrl === "datasets") return fromUrl;
-  try {
-    return localStorage.getItem(COUNT_STORAGE_KEY) === "publications" ? "publications" : "datasets";
-  } catch {
-    return "datasets";
-  }
-}
 const TOP_OPTIONS = [15, 30, 60, 120];
 const MAX_LABEL = 34;
 
@@ -209,6 +197,8 @@ function RowLabels({
 type Props = {
   query: string;
   facets: FacetSelection;
+  /** What the cells count (set by the Count switch of the page). */
+  countBy: CountUnit;
   onApplyCell: (cells: { field: FacetField; value: string }[]) => void;
 };
 
@@ -340,19 +330,10 @@ function AxisBreadcrumbs({
   );
 }
 
-export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
+export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
   const [axes, setAxes] = useState(loadAxes);
   const [top, setTop] = useState(30);
-  const [countBy, setCountBy] = useState<CountUnit>(loadCountBy);
   const unit = countBy === "publications" ? "publications" : "datasets";
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(COUNT_STORAGE_KEY, countBy);
-    } catch {
-      // ignore
-    }
-  }, [countBy]);
   const [data, setData] = useState<PivotResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -504,30 +485,6 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
             ))}
           </Select>
         </FormControl>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="body2" color="text.secondary">
-            Count
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            color="primary"
-            value={countBy}
-            onChange={(_, next: CountUnit | null) => {
-              if (next) setCountBy(next);
-            }}
-          >
-            <ToggleButton value="datasets" title="Number of datasets">
-              Datasets
-            </ToggleButton>
-            <ToggleButton
-              value="publications"
-              title="Number of publications: the datasets of a publication (same DOI, or same CELLxGENE collection) count once; a dataset without publication information counts as one study"
-            >
-              Publications
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Stack>
       </Stack>
       <AxisBreadcrumbs title="Rows" axis={axes.row} path={rowPath} scope={rowScope} onChange={setAxis("row")} />
       <AxisBreadcrumbs title="Columns" axis={axes.col} path={colPath} scope={colScope} onChange={setAxis("col")} />

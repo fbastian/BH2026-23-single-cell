@@ -26,6 +26,7 @@ import { EllipsisChip } from "./components/EllipsisChip";
 import { FacetList } from "./components/FacetList";
 import { ResultsPanel } from "./components/ResultsPanel";
 import { ViewToggle, type ResultsView } from "./components/ViewToggle";
+import { CountToggle, loadCountBy, saveCountBy } from "./components/CountToggle";
 import {
   FACET_FIELDS,
   FIELD_TITLES,
@@ -34,6 +35,7 @@ import {
   termLabel,
   type ExperimentRow,
   type FacetField,
+  type CountUnit,
   type FacetSelection,
 } from "./catalogQuery";
 
@@ -108,6 +110,10 @@ export default function App() {
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<ExperimentRow[]>([]);
   const [found, setFound] = useState(0);
+  const [foundPublications, setFoundPublications] = useState(0);
+  // What the numbers count (side filters, pivot, summary): datasets or publications.
+  const [countBy, setCountBy] = useState<CountUnit>(loadCountBy);
+  useEffect(() => saveCountBy(countBy), [countBy]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
@@ -152,6 +158,7 @@ export default function App() {
         if (!cancelled) {
           setRows(result.rows);
           setFound(result.found);
+          setFoundPublications(result.publications);
           setSearchError(null);
           setSearching(false);
         }
@@ -308,6 +315,7 @@ export default function App() {
                   selected={facets[field] ?? []}
                   open={OPEN_PANELS.has(field)}
                   onToggle={(value) => onToggleFacet(field, value)}
+                  countBy={countBy}
                 />
               </ListItem>
             ))}
@@ -351,6 +359,7 @@ export default function App() {
                   ),
                 }}
               />
+              <CountToggle value={countBy} onChange={setCountBy} />
               <ViewToggle value={view} onChange={setView} />
             </Stack>
 
@@ -372,7 +381,9 @@ export default function App() {
                 ? "Pivot view"
                 : searching
                   ? "Searching…"
-                  : `${found.toLocaleString()} datasets`}
+                  : countBy === "publications"
+                    ? `${foundPublications.toLocaleString()} publications (${found.toLocaleString()} datasets)`
+                    : `${found.toLocaleString()} datasets`}
             </Typography>
 
             {searchError ? (
@@ -388,6 +399,7 @@ export default function App() {
               facets={facets}
               onOpenHits={() => setView("table")}
               onApplyFacet={onApplyFacet}
+              countBy={countBy}
             />
 
             {view !== "pivot" && found > PAGE_SIZE ? (

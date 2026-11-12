@@ -27,6 +27,7 @@ import {
   FIELD_TITLES,
   isHierarchical,
   labelsOf,
+  type CountUnit,
   type ExperimentRow,
   type FacetField,
   type FacetSelection,
@@ -132,6 +133,7 @@ type Props = {
   facets: FacetSelection;
   onOpenHits: () => void;
   onApplyFacet: (field: FacetField, value: string) => void;
+  countBy: CountUnit;
 };
 
 function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_COLUMNS }) {
@@ -198,7 +200,7 @@ function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_CO
   );
 }
 
-export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFacet }: Props) {
+export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFacet, countBy }: Props) {
   const [groupBy, setGroupBy] = useState<GroupByField>(() => loadStoredGroupBy());
   const [columns, setColumns] = useState<TableColumnId[]>(() => loadStoredColumns());
   const [activeChip, setActiveChip] = useState<string | null>(null);
@@ -251,6 +253,7 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
       <PivotHeatmap
         query={query}
         facets={facets}
+        countBy={countBy}
         onApplyCell={(cells) => {
           for (const { field, value } of cells) onApplyFacet(field, value);
           onOpenHits();
