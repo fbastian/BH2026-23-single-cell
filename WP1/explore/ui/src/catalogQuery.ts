@@ -52,8 +52,6 @@ export const FIELD_TITLES: Record<FacetField, string> = {
   flags: "Flags",
 };
 
-/** Value id of 'not annotated' for the non-hierarchical fields (NA is the root for the others). */
-export const NA = "na";
 
 export type ExperimentRow = {
   objectID: string;
@@ -102,7 +100,6 @@ type Catalog = {
   homology: Record<FacetField, Map<string, HomologyGroup>>;
 };
 
-export type FacetCount = { value: string; count: number };
 
 /**
  * One pivot axis: a field; for hierarchical fields a roll-up node (null = raw terms); and the
