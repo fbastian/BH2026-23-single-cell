@@ -419,15 +419,20 @@ export async function facetCounts(
   return new Map([...units].map(([value, set]) => [value, set.size]));
 }
 
+/** All the datasets matching the search and filters, most cells first (order of the lists). */
+export async function matchingRows(query: string, facets: FacetSelection): Promise<ExperimentRow[]> {
+  return filteredRows((await loadCatalog()).rows, query, facets).sort(
+    (a, b) => b.cell_count - a.cell_count || a.title.localeCompare(b.title)
+  );
+}
+
 export async function searchRows(
   query: string,
   facets: FacetSelection,
   options: { offset: number; limit: number }
 ): Promise<{ rows: ExperimentRow[]; found: number; publications: number }> {
   const { offset, limit } = options;
-  const matched = filteredRows((await loadCatalog()).rows, query, facets).sort(
-    (a, b) => b.cell_count - a.cell_count || a.title.localeCompare(b.title)
-  );
+  const matched = await matchingRows(query, facets);
   return {
     found: matched.length,
     publications: new Set(matched.map(publicationOf)).size,

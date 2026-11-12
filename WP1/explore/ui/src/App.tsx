@@ -27,6 +27,7 @@ import { FacetList } from "./components/FacetList";
 import { ResultsPanel } from "./components/ResultsPanel";
 import { ViewToggle, type ResultsView } from "./components/ViewToggle";
 import { CountToggle, loadCountBy, saveCountBy } from "./components/CountToggle";
+import { ExportButton } from "./components/ExportButton";
 import {
   FACET_FIELDS,
   FIELD_TITLES,
@@ -379,15 +380,18 @@ export default function App() {
               </Stack>
             ) : null}
 
-            <Typography variant="body2" color="text.secondary" mb={1.5}>
-              {view === "pivot"
-                ? "Pivot view"
-                : searching
-                  ? "Searching…"
-                  : countBy === "publications"
-                    ? `${foundPublications.toLocaleString()} publications (${found.toLocaleString()} datasets)`
-                    : `${found.toLocaleString()} datasets`}
-            </Typography>
+            <Stack direction="row" spacing={2} alignItems="center" mb={1.5}>
+              <Typography variant="body2" color="text.secondary">
+                {view === "pivot"
+                  ? "Pivot view"
+                  : searching
+                    ? "Searching…"
+                    : countBy === "publications"
+                      ? `${foundPublications.toLocaleString()} publications (${found.toLocaleString()} datasets)`
+                      : `${found.toLocaleString()} datasets`}
+              </Typography>
+              {view !== "pivot" && found > 0 ? <ExportButton query={debouncedQuery} facets={facets} /> : null}
+            </Stack>
 
             {searchError ? (
               <Alert severity="error" sx={{ mb: 2 }}>
