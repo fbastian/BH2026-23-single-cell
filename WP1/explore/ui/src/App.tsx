@@ -194,11 +194,14 @@ export default function App() {
     });
   };
 
-  /** Add a filter value (pivot cell or group click), without removing one already set. */
+  /**
+   * Restrict a field to one value (pivot cell or column, table group). It replaces the field's
+   * selection instead of adding to it: values of a field combine with OR, so adding 'forebrain'
+   * to 'brain' would still list all brain datasets. The value is within the current selection
+   * (the pivot axes and the groups only show selected values and their descendants).
+   */
   const onApplyFacet = (field: FacetField, value: string) => {
-    setFacets((prev) =>
-      prev[field]?.includes(value) ? prev : { ...prev, [field]: [...(prev[field] ?? []), value] }
-    );
+    setFacets((prev) => ({ ...prev, [field]: [value] }));
   };
 
   if (bootError) {

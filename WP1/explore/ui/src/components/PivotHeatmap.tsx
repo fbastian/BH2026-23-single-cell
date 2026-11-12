@@ -334,6 +334,15 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
   const [axes, setAxes] = useState(loadAxes);
   const [top, setTop] = useState(30);
   const unit = countBy === "publications" ? "publications" : "datasets";
+
+  /**
+   * Filter value listing the datasets of a pivot value. Filters on hierarchical fields match
+   * descendants: raw terms and 'not more specific' values need an exact filter.
+   */
+  const filterValue = (axis: AxisState, v: string) => {
+    if (v.startsWith(SELF_PREFIX)) return EXACT_PREFIX + v.slice(SELF_PREFIX.length);
+    return isHierarchical(axis.field) && !axis.rollup ? EXACT_PREFIX + v : v;
+  };
   const [data, setData] = useState<PivotResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -452,13 +461,42 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
     };
   };
 
+  /** Button under a column: lists all the datasets of the column (table view). */
+  const columnButton = (tick: AxisTickProps<string>) => {
+    const value = String(tick.value);
+    const label = termLabel(axes.col.field, value);
+    const total = data ? data.colTotals[data.cols.indexOf(value)] ?? 0 : 0;
+    return (
+      <g
+        transform={`translate(${tick.x},${tick.y + 8})`}
+        onClick={() => onApplyCell([{ field: axes.col.field, value: filterValue(axes.col, value) }])}
+        style={{ cursor: "pointer" }}
+        role="button"
+        aria-label={`List the datasets of ${label}`}
+      >
+        <title>{`List all the datasets of ${label} (${total.toLocaleString()} ${unit})`}</title>
+        <rect x={-18} y={0} width={36} height={18} rx={9} fill="#ffffff" stroke="#0f6a5c" />
+        <text
+          x={0}
+          y={9}
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{ fontFamily: '"IBM Plex Sans", "Segoe UI", sans-serif', fontSize: 10, fill: "#0f6a5c" }}
+        >
+          list
+        </text>
+      </g>
+    );
+  };
+
   const longest = (values: string[], field: FacetField) =>
     Math.max(4, ...values.map((v) => Math.min(MAX_LABEL, termLabel(field, v).length)));
   // Fixed cell size: the table keeps its size and scrolls horizontally; row labels are an
   // HTML column pinned on the left (sticky), aligned with the rows of the heatmap.
   const labelWidth = data ? Math.min(260, 24 + longest(data.rows, axes.row.field) * 6.6) : 140;
   const marginTop = data ? Math.min(200, 30 + longest(data.cols, axes.col.field) * 4.6) : 110;
-  const marginBottom = 56;
+  // Below the cells: one "list" button per column, then the colour legend.
+  const marginBottom = 86;
   const chartWidth = data ? Math.max(300, data.cols.length * CELL_WIDTH + 2 * CHART_SIDE) : 300;
   const chartHeight = data ? data.rows.length * CELL_HEIGHT + marginTop + marginBottom : 360;
 
@@ -495,7 +533,8 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
             ? `${data.units.toLocaleString()} publications (${data.found.toLocaleString()} datasets) · a publication counts once per row, column and cell, whatever its number of datasets; a dataset without publication information counts as one study`
             : `${data.found.toLocaleString()} datasets`}{" "}
           · a dataset counts in every row and column it is annotated with (several species,
-          tissues, ...) · click a cell to list its datasets
+          tissues, ...) · click a cell to list its datasets, or "list" under a column to list all the
+          datasets of the column
           {axes.row.rollup || axes.col.rollup ? " · roll-up: a dataset also counts for all the more general terms of its annotations; click an underlined label to show only the terms under it" : ""}
         </Typography>
       ) : null}
@@ -539,7 +578,7 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
               yInnerPadding={0.08}
               axisTop={{ tickSize: 4, tickPadding: 6, tickRotation: -45, renderTick: tickRenderer("col") }}
               axisRight={null}
-              axisBottom={null}
+              axisBottom={{ tickSize: 0, tickPadding: 0, renderTick: columnButton }}
               axisLeft={null}
               colors={{
                 type: "sequential",
@@ -558,12 +597,6 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
               isInteractive
               onClick={(cell) => {
                 if (!cell.value) return;
-                // Filters on hierarchical fields match descendants: raw terms and 'not more
-                // specific' values need an exact filter to list the datasets of the cell.
-                const filterValue = (axis: AxisState, v: string) => {
-                  if (v.startsWith(SELF_PREFIX)) return EXACT_PREFIX + v.slice(SELF_PREFIX.length);
-                  return isHierarchical(axis.field) && !axis.rollup ? EXACT_PREFIX + v : v;
-                };
                 onApplyCell([
                   { field: axes.row.field, value: filterValue(axes.row, String(cell.serieId)) },
                   { field: axes.col.field, value: filterValue(axes.col, String(cell.data.x)) },
@@ -594,7 +627,7 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
                 {
                   anchor: "bottom",
                   translateX: 0,
-                  translateY: 30,
+                  translateY: 58,
                   length: 160,
                   thickness: 8,
                   direction: "row",
