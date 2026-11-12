@@ -146,8 +146,8 @@ function shorten(text: string): string {
 }
 
 /** Tooltip note of the column named after the roll-up node itself. */
-const SELF_NOTE = " annotated with this term itself and with no term below it";
-const SELF_NOTE_MERGED = " annotated with one of these terms itself and with no term below it";
+const SELF_NOTE = " annotated exactly with this term";
+const SELF_NOTE_MERGED = " annotated exactly with one of these terms";
 
 const CELL_WIDTH = 46;
 const CELL_HEIGHT = 28;
@@ -475,12 +475,16 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
     }));
   }, [data]);
 
-  /** A value can be drilled into if its axis is rolled up and it has children. */
+  /**
+   * A value can be drilled into if its axis is rolled up and it has children, and it is not the
+   * current roll-up node (whose column holds all its datasets).
+   */
   const canDrill = (axis: AxisState, value: string) =>
     axis.rollup &&
     isHierarchical(axis.field) &&
     !value.startsWith(SELF_PREFIX) &&
     !value.startsWith(EXACT_PREFIX) &&
+    value !== (axis === axes.row ? rowNode : colNode) &&
     childrenOf(axis.field as HierarchicalField, value).length > 0;
 
   const drill = (which: "row" | "col", value: string) =>

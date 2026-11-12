@@ -114,11 +114,25 @@ export type PivotAxis = { field: FacetField; node: string | null; scope: string[
 /** Roll-up node whose children are the selected filter terms (several terms selected). */
 export const SELECTED_NODE = "__selected__";
 
+/** The term of a filter value, without its EXACT_PREFIX. */
 export function stripExact(value: string): string {
-  return value.startsWith(EXACT_PREFIX) ? value.slice(EXACT_PREFIX.length) : value;
+  return isSpecific(value) ? value.slice(EXACT_PREFIX.length) : value;
 }
 
-/** Pivot value for datasets annotated with the roll-up node itself, not with a child. */
+/** Whether a filter value is an exact one (not the term and its descendants). */
+function isSpecific(value: string): boolean {
+  return value.startsWith(EXACT_PREFIX);
+}
+
+/** Filter prefix of a value ("" for the term and its descendants). */
+function prefixOf(value: string): string {
+  return isSpecific(value) ? EXACT_PREFIX : "";
+}
+
+/**
+ * Pivot value of a term ticked as 'exactly' (EXACT_PREFIX) when several terms are selected:
+ * the datasets annotated exactly with it.
+ */
 export const SELF_PREFIX = "__self__:";
 
 /**
@@ -406,9 +420,7 @@ function rowMatchesFacets(row: ExperimentRow, facets: FacetSelection, omitFacet?
     if (!wanted?.length || field === omitFacet) continue;
     const present = matchValues(row, field);
     const hit = (v: string) =>
-      v.startsWith(EXACT_PREFIX)
-        ? row.values[field].includes(v.slice(EXACT_PREFIX.length))
-        : has(present, v);
+      v.startsWith(EXACT_PREFIX) ? row.values[field].includes(stripExact(v)) : has(present, v);
     if (!wanted.some(hit)) return false;
   }
   return true;
@@ -478,7 +490,7 @@ export async function searchRows(
 function inScope(field: FacetField, value: string, scope: string[]): boolean {
   if (!scope.length) return true;
   return scope.some((s) => {
-    if (s.startsWith(EXACT_PREFIX)) return value === stripExact(s);
+    if (isSpecific(s)) return value === stripExact(s);
     if (value === s) return true;
     return isHierarchical(field) && (loaded().terms[field].get(value)?.ancestors.includes(s) ?? false);
   });
@@ -509,14 +521,27 @@ function axisValues(row: ExperimentRow, axis: PivotAxis): string[] {
 }
 
 /**
- * All terms under the node (at any depth) that the dataset is annotated with or under, or
- * SELF_PREFIX+node if it is annotated with the node itself and nothing more specific, or
- * nothing if it is outside the node.
+ * Roll-up values of a dataset under a node: the node itself and all the terms under it (at
+ * any depth) that the dataset is annotated with or under; nothing if it is outside the node.
+ * Like every roll-up column, the node's column counts the node and everything below it (all
+ * the datasets of the node), also for a hidden node such as the root (user request).
  */
 function rollupValues(expanded: Set<string>, field: HierarchicalField, node: string): string[] {
   if (!expanded.has(node)) return [];
   const below = [...expanded].filter((t) => !isHidden(field, t) && ancestorSet(field, t).has(node));
-  return below.length ? below : [SELF_PREFIX + node];
+  return [node, ...below];
+}
+
+/**
+ * Whether a pivot value is the roll-up node of its axis itself (or a ticked term, or their
+ * merged homology column): a total, left out of the colour scale.
+ */
+function isNodeValue(axis: PivotAxis, value: string): boolean {
+  if (!isHierarchical(axis.field) || axis.node == null) return false;
+  if (axis.node !== SELECTED_NODE) return value === axis.node;
+  const ticked = new Set(axis.scope.filter((v) => !isSpecific(v)));
+  if (ticked.has(value)) return true;
+  return value.startsWith(HOMOLOGY_PREFIX) && (homologyGroup(axis.field, value)?.members ?? []).some((m) => ticked.has(m));
 }
 
 const ancestorSets = new Map<string, Set<string>>();
@@ -563,12 +588,12 @@ export function withHomologs(field: FacetField, values: string[]): { values: str
   const out = [...values];
   const added: [string, string][] = [];
   for (const v of values) {
-    const exact = v.startsWith(EXACT_PREFIX);
+    const prefix = prefixOf(v);
     const term = stripExact(v);
     const key = homologyKey(field, term);
     if (!key) continue;
     for (const m of homologyGroup(field, key)?.members ?? []) {
-      const mv = exact ? EXACT_PREFIX + m : m;
+      const mv = prefix + m;
       if (!out.includes(mv)) {
         out.push(mv);
         added.push([m, term]);
@@ -584,23 +609,21 @@ function termOnAxis(axis: PivotAxis, term: string): boolean {
   if (axis.node == null) return inScope(axis.field, term, axis.scope);
   if (isHidden(axis.field, term)) return false;
   const anc = ancestorSet(axis.field, term);
-  if (axis.node === SELECTED_NODE) return axis.scope.some((s) => !s.startsWith(EXACT_PREFIX) && anc.has(s));
-  return anc.has(axis.node);
+  if (axis.node === SELECTED_NODE) return axis.scope.some((s) => !isSpecific(s) && (s === term || anc.has(s)));
+  return term === axis.node || anc.has(axis.node);
 }
 
 /**
- * Filter values listing the datasets of a pivot value (cell, row or column). Filters on
- * hierarchical fields match descendants, so raw terms and 'not more specific' values need an
+ * Filter values listing exactly the datasets of a pivot value (cell, row or column). Filters on
+ * hierarchical fields match descendants, so raw terms (and terms ticked as 'exactly') need an
  * exact filter; a homology group gives its members that are on the axis.
  */
 export function filterValuesFor(axis: PivotAxis, value: string): string[] {
   if (value.startsWith(SELF_PREFIX)) {
     const base = value.slice(SELF_PREFIX.length);
     if (!base.startsWith(HOMOLOGY_PREFIX)) return [EXACT_PREFIX + base];
-    // merged '(not more specific)' columns: the homologous terms that are roll-up nodes
-    const nodes = axis.node === SELECTED_NODE ? axis.scope.map(stripExact) : [axis.node ?? ""];
     const members = homologyGroup(axis.field, base)?.members ?? [];
-    return members.filter((m) => nodes.includes(m)).map((m) => EXACT_PREFIX + m);
+    return members.filter((m) => axis.scope.includes(EXACT_PREFIX + m)).map((m) => EXACT_PREFIX + m);
   }
   const raw = isHierarchical(axis.field) && axis.node == null;
   const terms = value.startsWith(HOMOLOGY_PREFIX)
@@ -684,14 +707,19 @@ export async function pivotCounts(
   const rowOrder = top(rowUnits, maxRows);
   const colOrder = top(colUnits, maxCols);
 
+  // Colour scale: the cells of the roll-up node's own row or column are totals (every dataset
+  // of the node), so they do not set the maximum (unless there is nothing else).
   let maxCell = 0;
+  let maxAll = 0;
   const matrix = rowOrder.map((r) =>
     colOrder.map((c) => {
       const n = pairUnits.get(`${r}\0${c}`)?.size ?? 0;
-      if (n > maxCell) maxCell = n;
+      if (n > maxAll) maxAll = n;
+      if (n > maxCell && !isNodeValue(rowAxis, r) && !isNodeValue(colAxis, c)) maxCell = n;
       return n;
     })
   );
+  if (maxCell === 0) maxCell = maxAll;
 
   return {
     rows: rowOrder,
