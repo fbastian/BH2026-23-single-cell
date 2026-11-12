@@ -196,13 +196,14 @@ export default function App() {
   };
 
   /**
-   * Restrict a field to one value (pivot cell or column, table group). It replaces the field's
-   * selection instead of adding to it: values of a field combine with OR, so adding 'forebrain'
-   * to 'brain' would still list all brain datasets. The value is within the current selection
-   * (the pivot axes and the groups only show selected values and their descendants).
+   * Restrict a field to values (pivot cell or column, table group; several for a merged column
+   * of homologous terms). It replaces the field's selection instead of adding to it: values of a
+   * field combine with OR, so adding 'forebrain' to 'brain' would still list all brain datasets.
+   * The values are within the current selection (the pivot axes and the groups only show
+   * selected values and their descendants).
    */
-  const onApplyFacet = (field: FacetField, value: string) => {
-    setFacets((prev) => ({ ...prev, [field]: [value] }));
+  const onApplyFacet = (field: FacetField, values: string[]) => {
+    if (values.length) setFacets((prev) => ({ ...prev, [field]: values }));
   };
 
   if (bootError) {

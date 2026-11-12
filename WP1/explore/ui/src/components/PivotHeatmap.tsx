@@ -24,6 +24,10 @@ import {
   stripExact,
   SELECTED_NODE,
   EXACT_PREFIX,
+  HOMOLOGY_PREFIX,
+  filterValuesFor,
+  homologyGroup,
+  withHomologs,
   FACET_FIELDS,
   FIELD_TITLES,
   SELF_PREFIX,
@@ -36,6 +40,7 @@ import {
   type FacetField,
   type FacetSelection,
   type HierarchicalField,
+  type PivotAxis,
   type PivotResult,
 } from "../catalogQuery";
 
@@ -123,6 +128,10 @@ function shorten(text: string): string {
   return text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL - 1)}…` : text;
 }
 
+/** Tooltip note of the column named after the roll-up node itself. */
+const SELF_NOTE = " annotated with this term itself and with no term below it";
+const SELF_NOTE_MERGED = " annotated with one of these terms itself and with no term below it";
+
 const CELL_WIDTH = 46;
 const CELL_HEIGHT = 28;
 const CHART_SIDE = 12;
@@ -173,7 +182,7 @@ function RowLabels({
             key={value}
             variant="caption"
             noWrap
-            title={`${label} (${id}): ${(totals[i] ?? 0).toLocaleString()} ${unit}${clickable ? " · click to show only the terms under it" : ""}`}
+            title={`${label} (${id}): ${(totals[i] ?? 0).toLocaleString()} ${unit}${value.startsWith(SELF_PREFIX) ? SELF_NOTE : ""}${clickable ? " · click to show only the terms under it" : ""}`}
             onClick={clickable ? () => onDrill(value) : undefined}
             sx={{
               height: CELL_HEIGHT,
@@ -199,7 +208,8 @@ type Props = {
   facets: FacetSelection;
   /** What the cells count (set by the Count switch of the page). */
   countBy: CountUnit;
-  onApplyCell: (cells: { field: FacetField; value: string }[]) => void;
+  /** Restrict fields to values (pivot cell or column): the datasets listed are those counted. */
+  onApplyCell: (cells: { field: FacetField; values: string[] }[]) => void;
 };
 
 function AxisControls({
@@ -335,22 +345,26 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
   const [top, setTop] = useState(30);
   const unit = countBy === "publications" ? "publications" : "datasets";
 
-  /**
-   * Filter value listing the datasets of a pivot value. Filters on hierarchical fields match
-   * descendants: raw terms and 'not more specific' values need an exact filter.
-   */
-  const filterValue = (axis: AxisState, v: string) => {
-    if (v.startsWith(SELF_PREFIX)) return EXACT_PREFIX + v.slice(SELF_PREFIX.length);
-    return isHierarchical(axis.field) && !axis.rollup ? EXACT_PREFIX + v : v;
-  };
   const [data, setData] = useState<PivotResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // The selection of the column field also brings the terms homologous to the selected terms
+  // (pivot only: side filters and lists keep the literal selection), so that their merged
+  // column appears when both have data with the other filters.
+  const homologs = useMemo(
+    () => withHomologs(axes.col.field, [...new Set(facets[axes.col.field] ?? [])]),
+    [facets, axes.col.field]
+  );
+  const pivotFacets = useMemo(
+    () => (homologs.added.length ? { ...facets, [axes.col.field]: homologs.values } : facets),
+    [facets, homologs, axes.col.field]
+  );
+
   // Filter selection on the field of each axis: the axis shows only these values (and their
   // descendants), and the roll-up starts from them. A new selection resets the drill-down.
-  const rowScope = useMemo(() => [...new Set(facets[axes.row.field] ?? [])], [facets, axes.row.field]);
-  const colScope = useMemo(() => [...new Set(facets[axes.col.field] ?? [])], [facets, axes.col.field]);
+  const rowScope = useMemo(() => [...new Set(pivotFacets[axes.row.field] ?? [])], [pivotFacets, axes.row.field]);
+  const colScope = useMemo(() => [...new Set(pivotFacets[axes.col.field] ?? [])], [pivotFacets, axes.col.field]);
   const rowScopeKey = rowScope.join("\n");
   const colScopeKey = colScope.join("\n");
   useEffect(() => {
@@ -365,6 +379,8 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
   const pathOf = (which: "row" | "col") => (which === "row" ? rowPath : colPath);
   const rowNode = axes.row.rollup ? rowPath[rowPath.length - 1] ?? null : null;
   const colNode = axes.col.rollup ? colPath[colPath.length - 1] ?? null : null;
+  const rowAxis: PivotAxis = { field: axes.row.field, node: rowNode, scope: rowScope };
+  const colAxis: PivotAxis = { field: axes.col.field, node: colNode, scope: colScope };
 
   useEffect(() => {
     try {
@@ -381,10 +397,10 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
     setError(null);
     const timer = window.setTimeout(() => {
       pivotCounts(
-        { field: axes.row.field, node: rowNode, scope: rowScope },
-        { field: axes.col.field, node: colNode, scope: colScope },
+        rowAxis,
+        colAxis,
         query,
-        facets,
+        pivotFacets,
         { maxRows: top, maxCols: top, countBy }
       )
         .then((result) => {
@@ -404,7 +420,7 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [axes.row.field, axes.col.field, rowNode, colNode, rowScope, colScope, query, facets, top, countBy]);
+  }, [axes.row.field, axes.col.field, rowNode, colNode, rowScope, colScope, query, pivotFacets, top, countBy]);
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -434,6 +450,12 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
       const label = termLabel(axis.field, value);
       const clickable = canDrill(axis, value);
       const total = totals[order.indexOf(value)] ?? 0;
+      const base = value.startsWith(SELF_PREFIX) ? value.slice(SELF_PREFIX.length) : value;
+      const group = base.startsWith(HOMOLOGY_PREFIX) ? homologyGroup(axis.field, base) : undefined;
+      const selfNote = !value.startsWith(SELF_PREFIX) ? "" : group ? SELF_NOTE_MERGED : SELF_NOTE;
+      const title = group
+        ? `${label}: homologous terms merged into one column (homologous in ${group.taxa}; Bgee anatomical similarity annotations): ${total.toLocaleString()} ${unit}${selfNote}`
+        : `${label} (${base}): ${total.toLocaleString()} ${unit}${selfNote}`;
       return (
         <g transform={`translate(${tick.x},${tick.y})`}>
           <line x1={0} x2={tick.lineX} y1={0} y2={tick.lineY} stroke="#b8c4cc" />
@@ -448,10 +470,11 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
               fill: clickable ? "#0f6a5c" : "#5b6b78",
               textDecoration: clickable ? "underline" : undefined,
               cursor: clickable ? "pointer" : "default",
+              fontStyle: group ? "italic" : undefined,
             }}
           >
             <title>
-              {`${label} (${value.startsWith(SELF_PREFIX) ? value.slice(SELF_PREFIX.length) : value}): ${total.toLocaleString()} ${unit}`}
+              {title}
               {clickable ? " · click to show only the terms under it" : ""}
             </title>
             {shorten(label)}
@@ -469,7 +492,7 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
     return (
       <g
         transform={`translate(${tick.x},${tick.y + 8})`}
-        onClick={() => onApplyCell([{ field: axes.col.field, value: filterValue(axes.col, value) }])}
+        onClick={() => onApplyCell([{ field: axes.col.field, values: filterValuesFor(colAxis, value) }])}
         style={{ cursor: "pointer" }}
         role="button"
         aria-label={`List the datasets of ${label}`}
@@ -538,6 +561,16 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
           {axes.row.rollup || axes.col.rollup ? " · roll-up: a dataset also counts for all the more general terms of its annotations; click an underlined label to show only the terms under it" : ""}
         </Typography>
       ) : null}
+      {homologs.added.length ? (
+        <Alert severity="info" sx={{ py: 0 }}>
+          The columns also include the terms homologous to your selection (Bgee anatomical
+          similarity annotations):{" "}
+          {homologs.added
+            .map(([m, s]) => `${termLabel(axes.col.field, m)} (homologous to ${termLabel(axes.col.field, s)})`)
+            .join(", ")}
+          . Their merged column appears when they have data with the other filters.
+        </Alert>
+      ) : null}
 
       {loading ? (
         <Stack direction="row" spacing={1} alignItems="center">
@@ -598,8 +631,8 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
               onClick={(cell) => {
                 if (!cell.value) return;
                 onApplyCell([
-                  { field: axes.row.field, value: filterValue(axes.row, String(cell.serieId)) },
-                  { field: axes.col.field, value: filterValue(axes.col, String(cell.data.x)) },
+                  { field: axes.row.field, values: filterValuesFor(rowAxis, String(cell.serieId)) },
+                  { field: axes.col.field, values: filterValuesFor(colAxis, String(cell.data.x)) },
                 ]);
               }}
               tooltip={({ cell }) => (

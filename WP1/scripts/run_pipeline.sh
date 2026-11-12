@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Regenerate all WP1 data from scratch: steps 1 to 6 of WP1/README.md.
+# Regenerate all WP1 data from scratch: steps 1 to 7 of WP1/README.md.
 #
-#   1. download the ontologies into data/ (skipped with --skip-download)
+#   1. download the ontologies and the Bgee homology annotations into data/
+#      (skipped with --skip-download)
 #   2. merge the dataset exports            -> output/datasets_merged.json, merged_datasets.tsv
 #   3. term remappings                      -> output/term_remappings.tsv
 #   4. ancestor expansion                   -> output/term_ancestors.tsv
 #   5. uninformative terms                  -> output/term_subsets.tsv
-#   6. export for the explore page          -> explore/ui/public/datasets.parquet, terms.parquet
+#   6. homology groups                      -> output/term_homology.tsv
+#   7. export for the explore page          -> explore/ui/public/datasets.parquet, terms.parquet
 #
 # Inputs that are not downloaded (must be in data/): datasets_CxG.json, datasets_scFAIR.json,
 # datasets_fenix.json. Hand-curated inputs: term_remappings_manual.tsv, term_subsets_manual.tsv.
@@ -16,7 +18,7 @@
 # The Python interpreter is taken from $PYTHON (default: python, e.g. in the conda env bh23):
 #   PYTHON=/path/to/envs/bh23/bin/python bash WP1/scripts/run_pipeline.sh
 #
-# Step 7 (the page) is not run: see WP1/explore/README.md (npm run build / npm run dev).
+# Step 8 (the page) is not run: see WP1/explore/README.md (npm run build / npm run dev).
 
 set -euo pipefail
 
@@ -24,7 +26,7 @@ SKIP_DOWNLOAD=0
 for arg in "$@"; do
   case "$arg" in
     --skip-download) SKIP_DOWNLOAD=1 ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "unknown option: $arg (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -45,8 +47,9 @@ need() {
 
 mkdir -p data output
 
-step "1. Ontologies"
+step "1. Ontologies and homology annotations"
 ONTOLOGIES=(uberon/composite-metazoan.obo uberon/collected-metazoan.obo cl.obo zfa.obo)
+HOMOLOGY_URL=https://raw.githubusercontent.com/BgeeDB/anatomical-similarity-annotations/refs/heads/master/release/ancestral_taxa_homology_annotations.tsv
 if [ "$SKIP_DOWNLOAD" -eq 1 ]; then
   echo "skipped (--skip-download), using the files in data/"
 else
@@ -54,8 +57,11 @@ else
     echo "downloading http://purl.obolibrary.org/obo/$o"
     curl -sSfL -o "data/$(basename "$o")" "http://purl.obolibrary.org/obo/$o"
   done
+  echo "downloading $HOMOLOGY_URL"
+  curl -sSfL -o "data/$(basename "$HOMOLOGY_URL")" "$HOMOLOGY_URL"
 fi
 for o in "${ONTOLOGIES[@]}"; do need "data/$(basename "$o")"; done
+need "data/$(basename "$HOMOLOGY_URL")"
 grep -m1 '^data-version:' data/composite-metazoan.obo || true
 
 step "2. Merge the datasets"
@@ -90,12 +96,20 @@ step "5. Uninformative terms"
   --manual term_subsets_manual.tsv \
   --out output/term_subsets.tsv
 
-step "6. Export for the explore page"
+step "6. Homology groups"
+"$PYTHON" scripts/make_homology_groups.py \
+  --annotations data/ancestral_taxa_homology_annotations.tsv \
+  --composite data/composite-metazoan.obo \
+  --ancestors output/term_ancestors.tsv \
+  --out output/term_homology.tsv
+
+step "7. Export for the explore page"
 "$PYTHON" scripts/export_explore.py \
   --datasets output/datasets_merged.json \
   --remappings output/term_remappings.tsv \
   --ancestors output/term_ancestors.tsv \
   --subsets output/term_subsets.tsv \
+  --homology output/term_homology.tsv \
   --out-datasets explore/ui/public/datasets.parquet \
   --out-terms explore/ui/public/terms.parquet
 

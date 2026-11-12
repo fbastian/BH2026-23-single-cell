@@ -2,7 +2,7 @@
 
 Pipeline to build the dataset metadata used for the species x factor table, online at **https://fbastian.github.io/BH2026-23-single-cell/**. The commands of each step are run from this folder (`WP1/`), in the conda environment described in [SETUP.md](SETUP.md). Input and intermediate files live in `data/` (git-ignored); generated files to share, such as the term remapping TSV, go in `output/`, and the files loaded by the explore page in `explore/ui/public/`.
 
-To run steps 1 to 6 in one go, in the conda environment (the script can be started from any folder, here the repository root):
+To run steps 1 to 7 in one go, in the conda environment (the script can be started from any folder, here the repository root):
 
 ```
 bash WP1/scripts/run_pipeline.sh                  # downloads the ontologies again
@@ -11,7 +11,7 @@ bash WP1/scripts/run_pipeline.sh --skip-download  # uses the ontologies already 
 
 [scripts/run_pipeline.sh](scripts/run_pipeline.sh) runs the commands below and stops at the first error. The dataset exports (`data/datasets_CxG.json`, `data/datasets_scFAIR.json`, `data/datasets_fenix.json`) must already be in `data/`. Set `PYTHON` to use another interpreter (e.g. `PYTHON=/path/to/envs/bh23/bin/python`). A new ontology release can change the remappings: check the warnings and the `unresolved` rows of step 3.
 
-## 1. Download the ontologies
+## 1. Download the ontologies and the homology annotations
 
 From the `data` folder:
 
@@ -20,9 +20,10 @@ curl -sLO http://purl.obolibrary.org/obo/uberon/composite-metazoan.obo
 curl -sLO http://purl.obolibrary.org/obo/uberon/collected-metazoan.obo
 curl -sLO http://purl.obolibrary.org/obo/cl.obo
 curl -sLO http://purl.obolibrary.org/obo/zfa.obo
+curl -sLO https://raw.githubusercontent.com/BgeeDB/anatomical-similarity-annotations/refs/heads/master/release/ancestral_taxa_homology_annotations.tsv
 ```
 
-`composite-metazoan.obo` is the reference ontology. The other three are only used to find the closest ancestors of terms that composite does not know (step 3).
+`composite-metazoan.obo` is the reference ontology. The other three ontologies are only used to find the closest ancestors of terms that composite does not know (step 3). `ancestral_taxa_homology_annotations.tsv` holds Bgee's homology annotations between anatomical structures and cell types (step 6).
 
 ## 2. Merge the datasets of the different sources
 
@@ -132,7 +133,27 @@ Hand-curated terms to hide go in [term_subsets_manual.tsv](term_subsets_manual.t
 
 The output TSV has the columns `factor`, `term_id`, `term_label`, `annotated` (as in step 4) and `subsets`. Terms annotated to datasets can be in these subsets too (e.g. cortex, hippocampal field, multicellular anatomical structure, and the roots, which stand for missing annotations): they stay visible as raw terms in the pivot.
 
-## 6. Export the data for the explore page
+## 6. Group the homologous terms
+
+[scripts/make_homology_groups.py](scripts/make_homology_groups.py) groups terms that are homologous across species according to the [Bgee anatomical similarity annotations](https://github.com/BgeeDB/anatomical-similarity-annotations), e.g. lung and swim bladder (homologous in Gnathostomata). The explore page merges each group into one pivot column.
+
+```
+python scripts/make_homology_groups.py \
+  --annotations data/ancestral_taxa_homology_annotations.tsv \
+  --composite data/composite-metazoan.obo \
+  --ancestors output/term_ancestors.tsv \
+  --out output/term_homology.tsv
+```
+
+All options are mandatory. How the groups are built:
+
+- Only the annotations with several entities are used: their `entity` column lists several ids separated by `|` (e.g. `UBERON:0002048|UBERON:0006860`, lung and swim bladder). The other annotations state that one structure is homologous across the species of a taxon, which composite-metazoan already handles: they merge nothing.
+- Each id is mapped onto composite-metazoan: kept if it is a composite term, otherwise replaced by the composite terms it is an xref of (e.g. ZFA, FBbt ids).
+- For each factor, only the terms of the ancestor TSV (step 4) are kept, and annotations sharing a term are merged, so that a term is in one group at most. For example, pectoral fin | arm (Sarcopterygii) and pectoral fin | forelimb (Vertebrata) give one group, "pectoral fin | arm | forelimb". Groups with fewer than two terms are dropped.
+
+Result: 12 groups (9 for tissue, 3 for cell types), e.g. lung | swim bladder, liver | hepatic cecum, osteoclast | Langerhans cell. The TSV has one row per term of a group: `factor`, `group_id` (term ids joined with `|`), `group_label`, `term_id`, `term_label`, `annotated` (as in step 4), and, from the annotations, `taxa` (ancestral taxa in which the homology holds), `annotations` and `confidence`.
+
+## 7. Export the data for the explore page
 
 [scripts/export_explore.py](scripts/export_explore.py) writes the two Parquet files loaded by the explore page ([explore/](explore/)): the datasets with their remapped annotations, and the terms with their hierarchy.
 
@@ -142,11 +163,12 @@ python scripts/export_explore.py \
   --remappings output/term_remappings.tsv \
   --ancestors output/term_ancestors.tsv \
   --subsets output/term_subsets.tsv \
+  --homology output/term_homology.tsv \
   --out-datasets explore/ui/public/datasets.parquet \
   --out-terms explore/ui/public/terms.parquet
 ```
 
-All options are mandatory. Use the files of steps 2 to 5. What the export does:
+All options are mandatory. Use the files of steps 2 to 6. What the export does:
 
 - Tissue, cell type and developmental stage are remapped with the TSV of step 3, like in step 4: an empty annotation becomes the root of the factor, an excluded term (cell line) is dropped.
 - Subspecies are folded into their species: a label of three words or more becomes its first two words, with the id of that species in the datasets (e.g. *Mus musculus musculus* becomes *Mus musculus*, *Sus scrofa domesticus* becomes *Sus scrofa*).
@@ -155,8 +177,8 @@ All options are mandatory. Use the files of steps 2 to 5. What the export does:
 - Datasets without a title (Single Cell Portal, ASAP, Bgee) get the collection name, or else the DOI label or the resource name, followed by the resource id.
 - Each dataset gets one publication, so that the page can count publications instead of datasets. In this order: its DOI; else the DOI of the other datasets of its CELLxGENE collection; else its CELLxGENE collection; else the dataset itself (no publication information: the dataset counts as one study). Only CELLxGENE has real collections: in the scFAIR export, the collection id of Bgee and Single Cell Portal datasets is the dataset's own accession, and ASAP uses a placeholder (`ASAP000000`) for all projects. Result: 608 publications for 2,540 datasets (421 DOIs, 11 CELLxGENE collections without DOI, 176 datasets without publication information, mostly Single Cell Portal: only 8% of its datasets have a DOI in the export). The DOI also groups the datasets of one paper across resources (e.g. Li et al. 2022, the Fly Cell Atlas: 42 ASAP datasets and 1 Bgee dataset).
 
-The terms file has one row per value of each field (`field`, `id`, `label`, `parent_ids`, `ancestor_ids`, `subsets`), including the publications (label: DOI label, e.g. "Siletti et al. (2023) Science", else collection name); for tissue, cell type and stage, the hierarchy comes from the TSV of step 4 and the subsets from the TSV of step 5. The page computes the counts and the roll-up in the browser.
+The terms file has one row per value of each field (`field`, `id`, `label`, `parent_ids`, `ancestor_ids`, `subsets`, `homology_group`, `homology_label`, `homology_taxa`), including the publications (label: DOI label, e.g. "Siletti et al. (2023) Science", else collection name); for tissue, cell type and stage, the hierarchy comes from the TSV of step 4, the subsets from the TSV of step 5 and the homology groups from the TSV of step 6. The page computes the counts and the roll-up in the browser.
 
-## 7. Explore page
+## 8. Explore page
 
 Static page (React, no server) with filters on the side and a pivot table (heatmap) of the number of datasets, e.g. species x tissue. Online at https://fbastian.github.io/BH2026-23-single-cell/, deployed on GitHub Pages from the `main` branch. See [explore/README.md](explore/README.md) to run it locally and for the deployment.

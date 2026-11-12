@@ -1,0 +1,27 @@
+factor	group_id	group_label	term_id	term_label	annotated	taxa	annotations	confidence
+cell_type	CL:0000092|CL:0000453	osteoclast | Langerhans cell	CL:0000453	Langerhans cell	yes	Vertebrata	CL:0000092|CL:0000453	confidence statement from congruent evidence lines of multiple types, overall confidence low
+cell_type	CL:0000092|CL:0000453	osteoclast | Langerhans cell	CL:0000092	osteoclast	yes	Vertebrata	CL:0000092|CL:0000453	confidence statement from congruent evidence lines of multiple types, overall confidence low
+cell_type	CL:0000653|CL:0002520	podocyte | nephrocyte	CL:0002520	nephrocyte	no	Bilateria	CL:0000653|CL:0002520	confidence statement from congruent evidence lines of multiple types, overall confidence medium
+cell_type	CL:0000653|CL:0002520	podocyte | nephrocyte	CL:0000653	podocyte	yes	Bilateria	CL:0000653|CL:0002520	confidence statement from congruent evidence lines of multiple types, overall confidence medium
+cell_type	CL:0000740|FBbt:00007251	retinal ganglion cell | rhabdomeric photoreceptor cell (D melanogaster)	CL:0000740	retinal ganglion cell	yes	Bilateria	CL:0000740|FBbt:00007251	medium confidence from single evidence
+cell_type	CL:0000740|FBbt:00007251	retinal ganglion cell | rhabdomeric photoreceptor cell (D melanogaster)	FBbt:00007251	rhabdomeric photoreceptor cell (D melanogaster)	no	Bilateria	CL:0000740|FBbt:00007251	medium confidence from single evidence
+tissue	UBERON:0001042|UBERON:0006562	chordate pharynx | pharynx	UBERON:0001042	chordate pharynx	no	Bilateria	UBERON:0001042|UBERON:0006562	medium confidence from single evidence
+tissue	UBERON:0001042|UBERON:0006562	chordate pharynx | pharynx	UBERON:0006562	pharynx	yes	Bilateria	UBERON:0001042|UBERON:0006562	medium confidence from single evidence
+tissue	UBERON:0005911|UBERON:0012275	endo-epithelium | meso-epithelium	UBERON:0005911	endo-epithelium	no	Eumetazoa	UBERON:0005911|UBERON:0012275	medium confidence from single evidence
+tissue	UBERON:0005911|UBERON:0012275	endo-epithelium | meso-epithelium	UBERON:0012275	meso-epithelium	no	Eumetazoa	UBERON:0005911|UBERON:0012275	medium confidence from single evidence
+tissue	UBERON:0000925|UBERON:0000926	endoderm | mesoderm	UBERON:0000925	endoderm	no	Eumetazoa	UBERON:0000925|UBERON:0000926	confidence statement from congruent evidence lines of multiple types, overall confidence medium
+tissue	UBERON:0000925|UBERON:0000926	endoderm | mesoderm	UBERON:0000926	mesoderm	yes	Eumetazoa	UBERON:0000925|UBERON:0000926	confidence statement from congruent evidence lines of multiple types, overall confidence medium
+tissue	UBERON:0002101|UBERON:0002534|UBERON:2000040	limb | paired fin | median fin fold	UBERON:0002101	limb	yes	Vertebrata	UBERON:0002101|UBERON:0002534; UBERON:0002534|UBERON:2000040	medium confidence from single evidence
+tissue	UBERON:0002101|UBERON:0002534|UBERON:2000040	limb | paired fin | median fin fold	UBERON:2000040	median fin fold	yes	Vertebrata	UBERON:0002101|UBERON:0002534; UBERON:0002534|UBERON:2000040	medium confidence from single evidence
+tissue	UBERON:0002101|UBERON:0002534|UBERON:2000040	limb | paired fin | median fin fold	UBERON:0002534	paired fin	no	Vertebrata	UBERON:0002101|UBERON:0002534; UBERON:0002534|UBERON:2000040	medium confidence from single evidence
+tissue	UBERON:0002107|UBERON:0012474	liver | hepatic cecum	UBERON:0012474	hepatic cecum	yes	Chordata	UBERON:0002107|UBERON:0012474	medium confidence from single evidence
+tissue	UBERON:0002107|UBERON:0012474	liver | hepatic cecum	UBERON:0002107	liver	yes	Chordata	UBERON:0002107|UBERON:0012474	medium confidence from single evidence
+tissue	UBERON:0002048|UBERON:0006860	lung | swim bladder	UBERON:0002048	lung	yes	Gnathostomata	UBERON:0002048|UBERON:0006860	confidence statement from congruent evidence lines of multiple types, overall confidence high
+tissue	UBERON:0002048|UBERON:0006860	lung | swim bladder	UBERON:0006860	swim bladder	yes	Gnathostomata	UBERON:0002048|UBERON:0006860	confidence statement from congruent evidence lines of multiple types, overall confidence high
+tissue	UBERON:0000151|UBERON:0001460|UBERON:0002102	pectoral fin | arm | forelimb	UBERON:0001460	arm	no	Sarcopterygii; Vertebrata	UBERON:0000151|UBERON:0001460; UBERON:0000151|UBERON:0002102	medium confidence from single evidence
+tissue	UBERON:0000151|UBERON:0001460|UBERON:0002102	pectoral fin | arm | forelimb	UBERON:0002102	forelimb	yes	Sarcopterygii; Vertebrata	UBERON:0000151|UBERON:0001460; UBERON:0000151|UBERON:0002102	medium confidence from single evidence
+tissue	UBERON:0000151|UBERON:0001460|UBERON:0002102	pectoral fin | arm | forelimb	UBERON:0000151	pectoral fin	yes	Sarcopterygii; Vertebrata	UBERON:0000151|UBERON:0001460; UBERON:0000151|UBERON:0002102	medium confidence from single evidence
+tissue	UBERON:0002049|UBERON:0007798	vasculature | vascular system	UBERON:0007798	vascular system	no	Metazoa	UBERON:0002049|UBERON:0007798	high confidence from single evidence
+tissue	UBERON:0002049|UBERON:0007798	vasculature | vascular system	UBERON:0002049	vasculature	yes	Metazoa	UBERON:0002049|UBERON:0007798	high confidence from single evidence
+tissue	UBERON:0000014|UBERON:0002097	zone of skin | skin of body	UBERON:0002097	skin of body	yes	Vertebrata	UBERON:0000014|UBERON:0002097	medium confidence from single evidence
+tissue	UBERON:0000014|UBERON:0002097	zone of skin | skin of body	UBERON:0000014	zone of skin	yes	Vertebrata	UBERON:0000014|UBERON:0002097	medium confidence from single evidence

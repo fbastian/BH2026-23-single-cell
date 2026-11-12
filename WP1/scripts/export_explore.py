@@ -1,9 +1,9 @@
 """Export the merged datasets, with remapped terms and the term hierarchy, for the explore UI.
 
 Reads the merged datasets JSON (merge_datasets.py), the term remapping TSV
-(make_term_remappings.py), the term ancestor TSV (make_term_ancestors.py) and the term subset
-TSV (make_term_subsets.py), and writes two Parquet files loaded by the browser
-(WP1/explore/ui):
+(make_term_remappings.py), the term ancestor TSV (make_term_ancestors.py), the term subset TSV
+(make_term_subsets.py) and the homology group TSV (make_homology_groups.py), and writes two
+Parquet files loaded by the browser (WP1/explore/ui):
 
 --out-datasets: one row per dataset. Columns holding facet values are lists of value ids:
   organism           NCBITaxon ids; subspecies are folded into their species (a label of 3 or
@@ -40,14 +40,17 @@ TSV (make_term_subsets.py), and writes two Parquet files loaded by the browser
   subsets. For tissue, cell type and developmental stage, these come from the ancestor TSV
   (annotated terms and their ancestors within the factor domain); the UI computes the roll-up
   from them. subsets: the subsets of the term in the subset TSV (e.g. upper_level); the UI
-  hides these terms in the filter trees and the roll-up columns. Other fields have no
-  hierarchy and no subsets.
+  hides these terms in the filter trees and the roll-up columns. homology_group,
+  homology_label, homology_taxa: the homology group of the term (group id, label, ancestral
+  taxa) from the homology TSV, empty if none; the pivot merges the columns of a group. Other
+  fields have no hierarchy, subsets or homology.
 
 The input files are not modified.
 
 Usage: python WP1/scripts/export_explore.py --datasets datasets_merged.json
            --remappings term_remappings.tsv --ancestors term_ancestors.tsv
-           --subsets term_subsets.tsv --out-datasets datasets.parquet --out-terms terms.parquet
+           --subsets term_subsets.tsv --homology term_homology.tsv
+           --out-datasets datasets.parquet --out-terms terms.parquet
 """
 
 import argparse
@@ -190,6 +193,8 @@ def main():
                     help="term ancestor TSV written by make_term_ancestors.py")
     ap.add_argument("--subsets", type=Path, required=True,
                     help="term subset TSV written by make_term_subsets.py")
+    ap.add_argument("--homology", type=Path, required=True,
+                    help="homology group TSV written by make_homology_groups.py")
     ap.add_argument("--out-datasets", type=Path, required=True, help="dataset Parquet to write")
     ap.add_argument("--out-terms", type=Path, required=True, help="term Parquet to write")
     args = ap.parse_args()
@@ -199,6 +204,8 @@ def main():
     hierarchy = read_ancestors(args.ancestors)
     fold = species_map(datasets)
     pub_of, pub_info, ignored_collections = publications(datasets)
+    with args.homology.open(encoding="utf-8", newline="") as f:
+        homology = {(r["factor"], r["term_id"]): r for r in csv.DictReader(f, delimiter="\t")}
     with args.subsets.open(encoding="utf-8", newline="") as f:
         subsets = {(r["factor"], r["term_id"]): r["subsets"].split(";")
                    for r in csv.DictReader(f, delimiter="\t")}
@@ -271,15 +278,20 @@ def main():
     term_rows = []
     for factor in FACTORS:
         for tid, (label, parents, ancestors) in hierarchy[factor].items():
+            hom = homology.get((factor, tid), {})
             term_rows.append({"field": factor, "id": tid, "label": label,
                               "parent_ids": parents, "ancestor_ids": ancestors,
-                              "subsets": subsets.get((factor, tid), [])})
+                              "subsets": subsets.get((factor, tid), []),
+                              "homology_group": hom.get("group_id", ""),
+                              "homology_label": hom.get("group_label", ""),
+                              "homology_taxa": hom.get("taxa", "")})
     for field, values in labels.items():
         for tid, label in values.items():
             if field in FACTORS and tid in hierarchy[field]:
                 continue
             term_rows.append({"field": field, "id": tid, "label": label,
-                              "parent_ids": [], "ancestor_ids": [], "subsets": []})
+                              "parent_ids": [], "ancestor_ids": [], "subsets": [],
+                              "homology_group": "", "homology_label": "", "homology_taxa": ""})
 
     # Text search: title, ids and the labels of the values (not of their ancestors).
     term_label = {(r["field"], r["id"]): r["label"] for r in term_rows}
@@ -300,7 +312,8 @@ def main():
     terms = pa.table({c: pa.array([r[c] for r in term_rows],
                                   type=pa.list_(pa.string()) if c.endswith("_ids")
                                   or c == "subsets" else pa.string())
-                      for c in ("field", "id", "label", "parent_ids", "ancestor_ids", "subsets")})
+                      for c in ("field", "id", "label", "parent_ids", "ancestor_ids", "subsets",
+                                "homology_group", "homology_label", "homology_taxa")})
     pq.write_table(terms, args.out_terms, compression="zstd")
 
     if missing:
@@ -319,6 +332,11 @@ def main():
           + ", ".join(f"{k} {kinds[k]} ({in_kind[k]} datasets)" for k in ("doi", "collection", "dataset")))
     for (slug, cid), dois in sorted(ignored_collections.items()):
         print(f"  collection {slug}:{cid} ignored for publications: its datasets have {len(dois)} DOIs")
+    n_hom = len({(r["field"], r["homology_group"]) for r in term_rows if r["homology_group"]})
+    print(f"  homology groups: {n_hom} ({sum(bool(r['homology_group']) for r in term_rows)} terms)")
+    missing_hom = set(homology) - {(r["field"], r["id"]) for r in term_rows}
+    if missing_hom:
+        print(f"warning: {len(missing_hom)} terms of the homology TSV are not in the ancestor TSV")
     unknown = set(subsets) - {(r["field"], r["id"]) for r in term_rows}
     if unknown:
         print(f"warning: {len(unknown)} terms of the subset TSV are not in the ancestor TSV")

@@ -133,7 +133,7 @@ type Props = {
   query: string;
   facets: FacetSelection;
   onOpenHits: () => void;
-  onApplyFacet: (field: FacetField, value: string) => void;
+  onApplyFacet: (field: FacetField, values: string[]) => void;
   countBy: CountUnit;
 };
 
@@ -240,7 +240,7 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
     setActiveChip(key);
     if (groupBy === "none") return;
     // Groups are the annotated values: filter on exactly that term, not its descendants.
-    onApplyFacet(groupBy, isHierarchical(groupBy) ? EXACT_PREFIX + key : key);
+    onApplyFacet(groupBy, [isHierarchical(groupBy) ? EXACT_PREFIX + key : key]);
     document.getElementById(groupDomId(key))?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -256,7 +256,7 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
         facets={facets}
         countBy={countBy}
         onApplyCell={(cells) => {
-          for (const { field, value } of cells) onApplyFacet(field, value);
+          for (const { field, values } of cells) onApplyFacet(field, values);
           onOpenHits();
         }}
       />

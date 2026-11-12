@@ -81,7 +81,15 @@ export type Term = {
   ancestors: string[];
   /** Subsets of the term (e.g. upper_level): hidden in filter trees and roll-up columns. */
   subsets: string[];
+  /** Key of the homology group of the term (HOMOLOGY_PREFIX + group id), or "" if none. */
+  homology: string;
 };
+
+/** Terms homologous across species (Bgee annotations), merged into one pivot column. */
+export type HomologyGroup = { key: string; label: string; taxa: string; members: string[] };
+
+/** Pivot column value of a homology group. */
+export const HOMOLOGY_PREFIX = "homology:";
 
 type Catalog = {
   rows: ExperimentRow[];
@@ -90,6 +98,8 @@ type Catalog = {
   roots: Record<HierarchicalField, string[]>;
   /** Datasets per publication id. */
   publicationSizes: Map<string, number>;
+  /** Homology groups per field, by key. */
+  homology: Record<FacetField, Map<string, HomologyGroup>>;
 };
 
 export type FacetCount = { value: string; count: number };
@@ -200,7 +210,25 @@ function buildCatalog(
       parents: asStrings(r.parent_ids),
       ancestors: asStrings(r.ancestor_ids),
       subsets: asStrings(r.subsets),
+      homology: r.homology_group ? HOMOLOGY_PREFIX + String(r.homology_group) : "",
     });
+  }
+  const homology = Object.fromEntries(
+    FACET_FIELDS.map((f) => [f, new Map<string, HomologyGroup>()])
+  ) as Catalog["homology"];
+  for (const r of termRows) {
+    if (!r.homology_group) continue;
+    const field = String(r.field) as FacetField;
+    const key = HOMOLOGY_PREFIX + String(r.homology_group);
+    const group = homology[field]?.get(key);
+    if (group) group.members.push(String(r.id));
+    else
+      homology[field]?.set(key, {
+        key,
+        label: String(r.homology_label),
+        taxa: String(r.homology_taxa ?? ""),
+        members: [String(r.id)],
+      });
   }
 
   const children = {} as Catalog["children"];
@@ -256,7 +284,7 @@ function buildCatalog(
   for (const row of rows) {
     for (const p of row.values.publication) publicationSizes.set(p, (publicationSizes.get(p) ?? 0) + 1);
   }
-  return { rows, terms, children, roots, publicationSizes };
+  return { rows, terms, children, roots, publicationSizes, homology };
 }
 
 async function loadCatalog(): Promise<Catalog> {
@@ -287,9 +315,10 @@ function loaded(): Catalog {
 /** Label of a value id (synchronous: the catalog is loaded before anything renders). */
 export function termLabel(field: FacetField, id: string): string {
   if (id === SELECTED_NODE) return "selected terms";
-  if (id.startsWith(SELF_PREFIX)) {
-    return `${termLabel(field, id.slice(SELF_PREFIX.length))} (not more specific)`;
-  }
+  if (id.startsWith(HOMOLOGY_PREFIX)) return catalog?.homology[field].get(id)?.label ?? id;
+  // Column of the datasets annotated with the roll-up node itself and with no term below it:
+  // named after the node (explained in the column tooltip).
+  if (id.startsWith(SELF_PREFIX)) return termLabel(field, id.slice(SELF_PREFIX.length));
   if (id.startsWith(EXACT_PREFIX)) {
     return `${termLabel(field, id.slice(EXACT_PREFIX.length))} (exactly)`;
   }
@@ -488,6 +517,93 @@ function rollupValues(expanded: Set<string>, field: HierarchicalField, node: str
 const ancestorSets = new Map<string, Set<string>>();
 
 /** Ancestors of a term as a set (cached). */
+/** Homology group key of a term, if it is in a group. */
+function homologyKey(field: FacetField, id: string): string | undefined {
+  return catalog?.terms[field].get(id)?.homology || undefined;
+}
+
+/**
+ * Merged column of each column value whose homologous terms are also columns: at least two
+ * terms of a homology group must be columns. Terms and '(not more specific)' columns are
+ * merged separately (SELF_PREFIX + group key for the latter).
+ */
+function homologyMerges(field: FacetField, values: Set<string>): Map<string, string> {
+  const byGroup = new Map<string, string[]>();
+  for (const v of values) {
+    const self = v.startsWith(SELF_PREFIX);
+    const key = homologyKey(field, self ? v.slice(SELF_PREFIX.length) : v);
+    if (!key) continue;
+    const merged = self ? SELF_PREFIX + key : key;
+    const list = byGroup.get(merged);
+    if (list) list.push(v);
+    else byGroup.set(merged, [v]);
+  }
+  const merge = new Map<string, string>();
+  for (const [merged, members] of byGroup) {
+    if (members.length > 1) for (const v of members) merge.set(v, merged);
+  }
+  return merge;
+}
+
+export function homologyGroup(field: FacetField, key: string): HomologyGroup | undefined {
+  return catalog?.homology[field].get(key);
+}
+
+/**
+ * A filter selection extended with the terms homologous to the selected terms (same exact or
+ * hierarchical form), for the pivot columns: selecting lung also brings swim bladder, so that
+ * their merged column appears when both have data. `added`: [homologous term, selected term].
+ */
+export function withHomologs(field: FacetField, values: string[]): { values: string[]; added: [string, string][] } {
+  const out = [...values];
+  const added: [string, string][] = [];
+  for (const v of values) {
+    const exact = v.startsWith(EXACT_PREFIX);
+    const term = stripExact(v);
+    const key = homologyKey(field, term);
+    if (!key) continue;
+    for (const m of homologyGroup(field, key)?.members ?? []) {
+      const mv = exact ? EXACT_PREFIX + m : m;
+      if (!out.includes(mv)) {
+        out.push(mv);
+        added.push([m, term]);
+      }
+    }
+  }
+  return { values: out, added };
+}
+
+/** Whether a term can be a value of the axis (within its roll-up node or filter selection). */
+function termOnAxis(axis: PivotAxis, term: string): boolean {
+  if (!isHierarchical(axis.field)) return true;
+  if (axis.node == null) return inScope(axis.field, term, axis.scope);
+  if (isHidden(axis.field, term)) return false;
+  const anc = ancestorSet(axis.field, term);
+  if (axis.node === SELECTED_NODE) return axis.scope.some((s) => !s.startsWith(EXACT_PREFIX) && anc.has(s));
+  return anc.has(axis.node);
+}
+
+/**
+ * Filter values listing the datasets of a pivot value (cell, row or column). Filters on
+ * hierarchical fields match descendants, so raw terms and 'not more specific' values need an
+ * exact filter; a homology group gives its members that are on the axis.
+ */
+export function filterValuesFor(axis: PivotAxis, value: string): string[] {
+  if (value.startsWith(SELF_PREFIX)) {
+    const base = value.slice(SELF_PREFIX.length);
+    if (!base.startsWith(HOMOLOGY_PREFIX)) return [EXACT_PREFIX + base];
+    // merged '(not more specific)' columns: the homologous terms that are roll-up nodes
+    const nodes = axis.node === SELECTED_NODE ? axis.scope.map(stripExact) : [axis.node ?? ""];
+    const members = homologyGroup(axis.field, base)?.members ?? [];
+    return members.filter((m) => nodes.includes(m)).map((m) => EXACT_PREFIX + m);
+  }
+  const raw = isHierarchical(axis.field) && axis.node == null;
+  const terms = value.startsWith(HOMOLOGY_PREFIX)
+    ? (homologyGroup(axis.field, value)?.members ?? []).filter((m) => termOnAxis(axis, m))
+    : [value];
+  return terms.map((t) => (raw ? EXACT_PREFIX + t : t));
+}
+
 function ancestorSet(field: HierarchicalField, id: string): Set<string> {
   const key = `${field}\0${id}`;
   let set = ancestorSets.get(key);
@@ -525,10 +641,21 @@ export async function pivotCounts(
   };
   let found = 0;
 
+  // First pass: row and column values of each dataset, and all the column values.
+  const prepared: { row: ExperimentRow; rows: string[]; cols: string[] }[] = [];
+  const columnValues = new Set<string>();
   for (const row of matched) {
     const rows = [...new Set(axisValues(row, rowAxis))];
     const cols = [...new Set(axisValues(row, colAxis))];
     if (!rows.length || !cols.length) continue;
+    prepared.push({ row, rows, cols });
+    for (const c of cols) columnValues.add(c);
+  }
+  // Columns only: homologous terms that are columns are merged into one column.
+  const merge = homologyMerges(colAxis.field, columnValues);
+
+  for (const { row, rows, cols: termCols } of prepared) {
+    const cols = [...new Set(termCols.map((c) => merge.get(c) ?? c))];
     found += 1;
     const unit = byPublication ? publicationOf(row) : row.id;
     allUnits.add(unit);
