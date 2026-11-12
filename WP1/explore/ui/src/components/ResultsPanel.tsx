@@ -76,12 +76,13 @@ const fieldColumn = (field: FacetField) => ({
   width: COLUMN_WIDTHS[field],
 });
 
-/** Columns: the title, species, the number of cells, then the other side-filter fields. */
+/** Columns: title, publication, species, number of cells, then the other side-filter fields. */
 const TABLE_COLUMNS: { id: TableColumnId; label: string; width: number; required?: boolean }[] = [
   { id: "title", label: "Title", width: 260, required: true },
+  fieldColumn("publication"),
   fieldColumn("organism"),
   { id: "cells", label: "Cells", width: 72 },
-  ...FACET_FIELDS.filter((field) => field !== "organism").map(fieldColumn),
+  ...FACET_FIELDS.filter((field) => field !== "organism" && field !== "publication").map(fieldColumn),
 ];
 
 const DEFAULT_COLUMNS: TableColumnId[] = TABLE_COLUMNS.map((col) => col.id);
