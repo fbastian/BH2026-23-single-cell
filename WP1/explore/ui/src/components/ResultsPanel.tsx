@@ -46,6 +46,7 @@ import {
   type ExperimentHit,
 } from "./Hit";
 import { PivotHeatmap } from "./PivotHeatmap";
+import { setUrlParams, urlParam } from "../urlState";
 import type { ResultsView } from "./ViewToggle";
 
 const GROUP_STORAGE_KEY = "wp1-explore-group-by";
@@ -101,6 +102,8 @@ const STICKY_SX = {
 } as const;
 
 function loadStoredGroupBy(): GroupByField {
+  const fromUrl = urlParam("group");
+  if (GROUP_BY_OPTIONS.some((option) => option.value === fromUrl)) return fromUrl as GroupByField;
   try {
     const value = localStorage.getItem(GROUP_STORAGE_KEY);
     if (GROUP_BY_OPTIONS.some((option) => option.value === value)) return value as GroupByField;
@@ -213,6 +216,7 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
     } catch {
       // ignore
     }
+    setUrlParams({ group: groupBy === "none" ? null : groupBy });
     setActiveChip(null);
   }, [groupBy]);
 

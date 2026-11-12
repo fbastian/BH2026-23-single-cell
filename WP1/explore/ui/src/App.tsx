@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AppBar,
@@ -11,6 +11,7 @@ import {
   List,
   ListItem,
   Pagination,
+  Snackbar,
   Stack,
   TextField,
   Toolbar,
@@ -21,6 +22,7 @@ import { styled } from "@mui/material/styles";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import SearchIcon from "@mui/icons-material/Search";
+import LinkIcon from "@mui/icons-material/Link";
 import InputAdornment from "@mui/material/InputAdornment";
 import { EllipsisChip } from "./components/EllipsisChip";
 import { FacetList } from "./components/FacetList";
@@ -28,6 +30,7 @@ import { ResultsPanel } from "./components/ResultsPanel";
 import { ViewToggle, type ResultsView } from "./components/ViewToggle";
 import { CountToggle, loadCountBy, saveCountBy } from "./components/CountToggle";
 import { ExportButton } from "./components/ExportButton";
+import { setUrlParams, urlList, urlParam } from "./urlState";
 import {
   FACET_FIELDS,
   FIELD_TITLES,
@@ -91,24 +94,25 @@ function toggleValue(values: string[] | undefined, value: string): string[] {
 export default function App() {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  // Initial filters from the URL, e.g. ?tissue=UBERON:0000955,UBERON:0000948&organism=NCBITaxon:9606
+  // The initial state comes from the URL (see urlState.ts), which is kept up to date below, so
+  // that the page can be shared as a link: ?view=table&q=...&tissue=UBERON:0000955,...&page=2
+  const [query, setQuery] = useState(() => urlParam("q") ?? "");
+  const [debouncedQuery, setDebouncedQuery] = useState(() => urlParam("q") ?? "");
   const [facets, setFacets] = useState<FacetSelection>(() => {
-    const params = new URLSearchParams(window.location.search);
     const out: FacetSelection = {};
     for (const field of FACET_FIELDS) {
-      const values = (params.get(field) ?? "").split(",").filter(Boolean);
+      const values = urlList(field);
       if (values.length) out[field] = values;
     }
     return out;
   });
-  // Initial view from the URL (?view=cards|table|pivot), pivot by default.
+  // Pivot view by default.
   const [view, setView] = useState<ResultsView>(() => {
-    const v = new URLSearchParams(window.location.search).get("view");
+    const v = urlParam("view");
     return v === "cards" || v === "table" ? v : "pivot";
   });
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(() => Math.max(0, (Number(urlParam("page")) || 1) - 1));
+  const [linkCopied, setLinkCopied] = useState(false);
   const [rows, setRows] = useState<ExperimentRow[]>([]);
   const [found, setFound] = useState(0);
   const [foundPublications, setFoundPublications] = useState(0);
@@ -143,9 +147,30 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  // Back to the first page when the search or the filters change (not at start: the page can
+  // come from the URL). Compared by value, robust to effects run twice in development.
+  const searchKey = JSON.stringify([debouncedQuery, facets]);
+  const previousSearchKey = useRef(searchKey);
   useEffect(() => {
+    if (previousSearchKey.current === searchKey) return;
+    previousSearchKey.current = searchKey;
     setPage(0);
-  }, [debouncedQuery, facets]);
+  }, [searchKey]);
+
+  // The state in the URL, for sharing links.
+  useEffect(() => {
+    setUrlParams({
+      view,
+      count: countBy,
+      q: debouncedQuery.trim() || null,
+      page: page > 0 ? String(page + 1) : null,
+      ...Object.fromEntries(FACET_FIELDS.map((field) => [field, facets[field] ?? null])),
+    });
+  }, [view, countBy, debouncedQuery, page, facets]);
+
+  const copyLink = () => {
+    navigator.clipboard?.writeText(window.location.href).then(() => setLinkCopied(true), () => undefined);
+  };
 
   useEffect(() => {
     if (!ready || view === "pivot") return;
@@ -363,6 +388,18 @@ export default function App() {
                     </InputAdornment>
                   ),
                 }}
+              />
+              <Tooltip title="Copy a link to this view (filters, search, pivot, ...): the address of the page is kept up to date">
+                <IconButton size="small" aria-label="Copy a link to this view" onClick={copyLink}>
+                  <LinkIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Snackbar
+                open={linkCopied}
+                autoHideDuration={2500}
+                onClose={() => setLinkCopied(false)}
+                message="Link to this view copied to the clipboard"
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
               />
               <CountToggle value={countBy} onChange={setCountBy} />
               <ViewToggle value={view} onChange={setView} />

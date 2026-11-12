@@ -377,6 +377,11 @@ export function pathTo(field: HierarchicalField, id: string): string[] {
   return path.filter((t, i) => i === 0 || i === path.length - 1 || !isHidden(field, t));
 }
 
+/** Whether a value id exists for a field (e.g. a term read from the URL). */
+export function hasValue(field: FacetField, id: string): boolean {
+  return Boolean(catalog?.terms[field].has(id));
+}
+
 /** All value ids of a field (for hierarchical fields: annotated terms and their ancestors). */
 export function allValues(field: FacetField): string[] {
   return [...loaded().terms[field].keys()];

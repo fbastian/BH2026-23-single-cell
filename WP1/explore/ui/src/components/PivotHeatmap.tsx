@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { setUrlParams, urlList, urlParam } from "../urlState";
 import { HeatMap } from "@nivo/heatmap";
 import type { AxisTickProps } from "@nivo/axes";
 import {
@@ -26,6 +27,7 @@ import {
   EXACT_PREFIX,
   HOMOLOGY_PREFIX,
   filterValuesFor,
+  hasValue,
   homologyGroup,
   withHomologs,
   FACET_FIELDS,
@@ -105,7 +107,22 @@ function newAxis(field: FacetField, rollup: boolean): AxisState {
   return { field, rollup: rollup && isHierarchical(field), path: [] };
 }
 
+/** An axis from the URL: rows=organism, cols=tissue&cols_mode=rollup&cols_path=UBERON:...,... */
+function axisFromUrl(prefix: "rows" | "cols"): AxisState | null {
+  const field = urlParam(prefix);
+  if (!field || !(FACET_FIELDS as readonly string[]).includes(field)) return null;
+  const f = field as FacetField;
+  const path = urlList(`${prefix}_path`).filter((id) => id === SELECTED_NODE || hasValue(f, id));
+  return { field: f, rollup: urlParam(`${prefix}_mode`) !== "raw" && isHierarchical(f), path };
+}
+
+/** Initial axes: from the URL, else the last choice (localStorage), else species x tissue roll-up. */
 function loadAxes(): { row: AxisState; col: AxisState } {
+  const stored = loadStoredAxes();
+  return { row: axisFromUrl("rows") ?? stored.row, col: axisFromUrl("cols") ?? stored.col };
+}
+
+function loadStoredAxes(): { row: AxisState; col: AxisState } {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as {
       row?: { field?: string; rollup?: boolean };
@@ -342,7 +359,10 @@ function AxisBreadcrumbs({
 
 export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
   const [axes, setAxes] = useState(loadAxes);
-  const [top, setTop] = useState(30);
+  const [top, setTop] = useState(() => {
+    const n = Number(urlParam("top"));
+    return TOP_OPTIONS.includes(n) ? n : 30;
+  });
   const unit = countBy === "publications" ? "publications" : "datasets";
 
   const [data, setData] = useState<PivotResult | null>(null);
@@ -367,10 +387,17 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
   const colScope = useMemo(() => [...new Set(pivotFacets[axes.col.field] ?? [])], [pivotFacets, axes.col.field]);
   const rowScopeKey = rowScope.join("\n");
   const colScopeKey = colScope.join("\n");
+  // Only when the selection changes, not at start (the drill-down can come from the URL).
+  const previousRowScope = useRef(rowScopeKey);
+  const previousColScope = useRef(colScopeKey);
   useEffect(() => {
+    if (previousRowScope.current === rowScopeKey) return;
+    previousRowScope.current = rowScopeKey;
     setAxes((prev) => (prev.row.path.length ? { ...prev, row: { ...prev.row, path: [] } } : prev));
   }, [rowScopeKey]);
   useEffect(() => {
+    if (previousColScope.current === colScopeKey) return;
+    previousColScope.current = colScopeKey;
     setAxes((prev) => (prev.col.path.length ? { ...prev, col: { ...prev.col, path: [] } } : prev));
   }, [colScopeKey]);
 
@@ -390,6 +417,20 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
       // ignore
     }
   }, [axes]);
+
+  // The pivot state in the URL, for sharing links.
+  useEffect(() => {
+    const mode = (a: AxisState) => (isHierarchical(a.field) ? (a.rollup ? "rollup" : "raw") : null);
+    setUrlParams({
+      rows: axes.row.field,
+      rows_mode: mode(axes.row),
+      rows_path: axes.row.path,
+      cols: axes.col.field,
+      cols_mode: mode(axes.col),
+      cols_path: axes.col.path,
+      top: String(top),
+    });
+  }, [axes, top]);
 
   useEffect(() => {
     let cancelled = false;
