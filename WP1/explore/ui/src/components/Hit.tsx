@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Card, CardContent, Chip, Link, Stack, Tooltip, Typography } from "@mui/material";
+import { Fragment, useState, type MouseEvent } from "react";
+import { Box, Card, CardContent, Chip, Link, Stack, Tooltip, Typography } from "@mui/material";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import {
   FIELD_TITLES,
@@ -10,7 +10,6 @@ import {
   type ExperimentRow,
   type FacetField,
 } from "../catalogQuery";
-import { EllipsisChip } from "./EllipsisChip";
 
 export type ExperimentHit = ExperimentRow;
 
@@ -35,44 +34,64 @@ export function formatCompactCount(value: number): string {
   return `${formatScaled(n / 1_000_000_000)}B`;
 }
 
-/** Attribute lists: at most `limit` value chips, then a single +n chip listing the rest. */
-export function AttributeChips({
-  values,
-  limit = 3,
-  chipMaxWidth = 110,
-  wrap = true,
-}: {
-  values?: string[];
-  limit?: number;
-  chipMaxWidth?: number;
-  wrap?: boolean;
-}) {
-  if (!values?.length) {
+/**
+ * Chip style whose label wraps onto several lines instead of being cut: a chip's label is on
+ * one line by default and gets an ellipsis when the chip is wider than its column.
+ */
+export const WRAP_CHIP_SX = {
+  height: "auto",
+  maxWidth: "100%",
+  "& .MuiChip-label": {
+    display: "block",
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
+    py: "2px",
+    lineHeight: 1.35,
+  },
+} as const;
+
+/**
+ * A list of values as chips ("bubbles") whose labels wrap: the first `limit` values, then a
+ * "+N more" chip that shows the whole list ("show less" folds it again).
+ */
+export function ValueChips({ values, limit = 6 }: { values: string[]; limit?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!values.length) {
     return (
-      <Typography variant="caption" color="text.secondary">
+      <Typography variant="body2" color="text.secondary">
         —
       </Typography>
     );
   }
-  const shown = values.slice(0, limit);
-  const rest = values.slice(limit);
+  const shown = expanded ? values : values.slice(0, limit);
+  const hidden = values.length - shown.length;
+  const toggle = (open: boolean) => (event: MouseEvent) => {
+    event.stopPropagation();
+    setExpanded(open);
+  };
   return (
-    <Stack
-      direction="row"
-      flexWrap={wrap ? "wrap" : "nowrap"}
-      useFlexGap
-      gap={0.5}
-      sx={wrap ? undefined : { overflow: "hidden" }}
-    >
-      {shown.map((value) => (
-        <EllipsisChip key={value} size="small" label={value} variant="outlined" maxWidth={chipMaxWidth} />
+    <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.5}>
+      {shown.map((value, i) => (
+        <Chip key={`${i}-${value}`} size="small" variant="outlined" label={value} sx={WRAP_CHIP_SX} />
       ))}
-      {rest.length ? (
-        <Tooltip title={rest.join(" · ")}>
-          <Chip size="small" label={`+${rest.length}`} variant="outlined" />
-        </Tooltip>
+      {hidden > 0 ? (
+        <Chip size="small" color="primary" variant="outlined" clickable label={`+${hidden} more`} onClick={toggle(true)} />
+      ) : null}
+      {expanded && values.length > limit ? (
+        <Chip size="small" clickable label="show less" onClick={toggle(false)} />
       ) : null}
     </Stack>
+  );
+}
+
+/** Flags of a dataset (merged across resources, several species) as warning chips. */
+export function FlagChips({ hit }: { hit: ExperimentHit }) {
+  return (
+    <>
+      {hit.values.flags.map((flag) => (
+        <Chip key={flag} size="small" color="warning" variant="outlined" label={termLabel("flags", flag)} sx={WRAP_CHIP_SX} />
+      ))}
+    </>
   );
 }
 
@@ -88,6 +107,7 @@ export function SourceChips({ hit }: { hit: ExperimentHit }) {
             size="small"
             color="primary"
             label={termLabel("source", slug)}
+            sx={WRAP_CHIP_SX}
             {...(url ? { component: "a", href: url, target: "_blank", rel: "noreferrer", clickable: true } : {})}
           />
         );
@@ -110,7 +130,7 @@ export function publicationTooltip(hit: ExperimentHit): string {
 }
 
 /** Chip of the dataset's publication (link to the DOI or collection); nothing without one. */
-export function PublicationChip({ hit, maxWidth = 260 }: { hit: ExperimentHit; maxWidth?: number }) {
+export function PublicationChip({ hit }: { hit: ExperimentHit }) {
   const label = publicationLabel(hit);
   if (!label) return null;
   const url = hit.publication_url;
@@ -121,53 +141,32 @@ export function PublicationChip({ hit, maxWidth = 260 }: { hit: ExperimentHit; m
         variant="outlined"
         icon={<ArticleOutlinedIcon />}
         label={label}
-        sx={{ maxWidth }}
+        sx={WRAP_CHIP_SX}
         {...(url ? { component: "a", href: url, target: "_blank", rel: "noreferrer", clickable: true } : {})}
       />
     </Tooltip>
   );
 }
 
-function FacetBlock({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack spacing={0.25} minWidth={0}>
-      <Typography variant="caption" color="text.secondary" fontWeight={600} lineHeight={1.2}>
-        {label}
-      </Typography>
-      {children}
-    </Stack>
-  );
-}
-
-const CARD_FIELDS: FacetField[] = [
+/** Fields shown on a card, as on the side filters (resource, publication and flags are chips). */
+export const DETAIL_FIELDS: FacetField[] = [
   "organism",
   "tissue",
   "cell_type",
   "development_stage",
   "assay",
   "disease",
-  "suspension_type",
   "sex",
+  "suspension_type",
+  "tissue_type",
 ];
 
 export function Hit({ hit }: { hit: ExperimentHit }) {
   const title = hitTitle(hit);
   return (
     <Card variant="outlined" sx={{ height: "100%" }}>
-      <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
-        <Typography
-          variant="subtitle1"
-          component="h3"
-          fontWeight={700}
-          lineHeight={1.25}
-          sx={{
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            mb: 0.75,
-          }}
-        >
+      <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+        <Typography variant="subtitle1" component="h3" fontWeight={700} lineHeight={1.25} sx={{ mb: 0.75 }}>
           {hit.explorer_url ? (
             <Link href={hit.explorer_url} target="_blank" rel="noreferrer" underline="hover">
               {title}
@@ -176,32 +175,35 @@ export function Hit({ hit }: { hit: ExperimentHit }) {
             title
           )}
         </Typography>
-        <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.5} mb={1}>
+        <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.5} mb={1.25}>
           <SourceChips hit={hit} />
           <Tooltip title={hit.cell_count.toLocaleString()} enterDelay={400}>
             <Chip size="small" label={`${formatCompactCount(hit.cell_count)} cells`} />
           </Tooltip>
-          {hit.values.flags.map((flag) => (
-            <Chip key={flag} size="small" color="warning" variant="outlined" label={termLabel("flags", flag)} />
-          ))}
+          <FlagChips hit={hit} />
           <PublicationChip hit={hit} />
           {hit.h5ad_url ? (
             <Chip size="small" variant="outlined" component="a" href={hit.h5ad_url} clickable label="H5AD" />
           ) : null}
         </Stack>
-        <Stack
-          direction="row"
-          flexWrap="wrap"
-          useFlexGap
-          gap={1}
-          sx={{ "& > *": { flex: "1 1 calc(50% - 8px)", minWidth: 0, maxWidth: "100%" } }}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "max-content minmax(0, 1fr)",
+            columnGap: 1.5,
+            rowGap: 0.75,
+            alignItems: "start",
+          }}
         >
-          {CARD_FIELDS.map((field) => (
-            <FacetBlock key={field} label={FIELD_TITLES[field]}>
-              <AttributeChips values={labelsOf(field, hit.values[field])} />
-            </FacetBlock>
+          {DETAIL_FIELDS.map((field) => (
+            <Fragment key={field}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ pt: "3px" }}>
+                {FIELD_TITLES[field]}
+              </Typography>
+              <ValueChips values={labelsOf(field, hit.values[field])} />
+            </Fragment>
           ))}
-        </Stack>
+        </Box>
       </CardContent>
     </Card>
   );

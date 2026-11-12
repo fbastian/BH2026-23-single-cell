@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   Button,
   Checkbox,
@@ -23,6 +23,7 @@ import {
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import {
   EXACT_PREFIX,
+  FACET_FIELDS,
   FIELD_TITLES,
   isHierarchical,
   labelsOf,
@@ -33,84 +34,69 @@ import {
 import { EllipsisChip } from "./EllipsisChip";
 import { GROUP_BY_OPTIONS, groupHits, type GroupByField } from "./groupBy";
 import {
-  AttributeChips,
+  FlagChips,
   Hit,
+  PublicationChip,
   SourceChips,
+  ValueChips,
   formatCompactCount,
   hitTitle,
   publicationLabel,
-  publicationTooltip,
   type ExperimentHit,
 } from "./Hit";
 import { PivotHeatmap } from "./PivotHeatmap";
 import type { ResultsView } from "./ViewToggle";
 
 const GROUP_STORAGE_KEY = "wp1-explore-group-by";
-// v2: the Publication column was added to the default columns (2026-11-12)
-const COLUMNS_STORAGE_KEY = "wp1-explore-table-columns-v2";
+// v3: all the side-filter fields as columns, shown by default (2026-11-12)
+const COLUMNS_STORAGE_KEY = "wp1-explore-table-columns-v3";
 
-type TableColumnId = "title" | "source" | "cells" | FacetField;
+type TableColumnId = "title" | "cells" | FacetField;
 
-const TABLE_CHIP_MAX = 72;
+/** Column widths, wide enough for whole words in the chips (e.g. CELLxGENE, annotated). */
+const COLUMN_WIDTHS: Record<FacetField, number> = {
+  organism: 130,
+  tissue: 190,
+  cell_type: 210,
+  development_stage: 170,
+  assay: 130,
+  disease: 150,
+  sex: 110,
+  suspension_type: 115,
+  tissue_type: 125,
+  source: 125,
+  publication: 190,
+  flags: 125,
+};
 
-const FIELD_COLUMNS: FacetField[] = [
-  "organism",
-  "tissue",
-  "cell_type",
-  "development_stage",
-  "assay",
-  "disease",
-  "suspension_type",
+const fieldColumn = (field: FacetField) => ({
+  id: field as TableColumnId,
+  label: FIELD_TITLES[field],
+  width: COLUMN_WIDTHS[field],
+});
+
+/** Columns: the title, species, the number of cells, then the other side-filter fields. */
+const TABLE_COLUMNS: { id: TableColumnId; label: string; width: number; required?: boolean }[] = [
+  { id: "title", label: "Title", width: 260, required: true },
+  fieldColumn("organism"),
+  { id: "cells", label: "Cells", width: 72 },
+  ...FACET_FIELDS.filter((field) => field !== "organism").map(fieldColumn),
 ];
 
-const TABLE_COLUMNS: {
-  id: TableColumnId;
-  label: string;
-  /** Fixed width for compact columns; omit so Title can expand. */
-  width?: number;
-  required?: boolean;
-}[] = [
-  { id: "title", label: "Title", required: true },
-  { id: "source", label: "Resource", width: 96 },
-  { id: "publication", label: "Publication", width: 180 },
-  ...FIELD_COLUMNS.map((field) => ({ id: field as TableColumnId, label: FIELD_TITLES[field], width: 108 })),
-  { id: "cells", label: "Cells", width: 76 },
-];
+const DEFAULT_COLUMNS: TableColumnId[] = TABLE_COLUMNS.map((col) => col.id);
 
-const DEFAULT_COLUMNS: TableColumnId[] = ["title", "source", "publication", "organism", "tissue", "cell_type", "cells"];
+/** Opaque table background: the theme's paper colour is translucent, which would let the
+ * columns scrolled under the pinned title column show through. */
+const TABLE_BG = "#ffffff";
 
-function columnCellSx(col: (typeof TABLE_COLUMNS)[number]) {
-  return {
-    width: col.width ?? "auto",
-    maxWidth: col.width ?? "none",
-    whiteSpace: "nowrap" as const,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    verticalAlign: "middle",
-  };
-}
-
-function TruncatedCell({
-  text,
-  width,
-  children,
-  align,
-}: {
-  text: string;
-  width?: number;
-  children?: ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <TableCell align={align} sx={{ width: width ?? "auto", maxWidth: width, whiteSpace: "nowrap", verticalAlign: "middle" }}>
-      <Tooltip title={text} enterDelay={400}>
-        <Typography component="span" display="block" noWrap variant="inherit" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-          {children ?? text}
-        </Typography>
-      </Tooltip>
-    </TableCell>
-  );
-}
+/** The title column stays visible when the table scrolls horizontally. */
+const STICKY_SX = {
+  position: "sticky",
+  left: 0,
+  zIndex: 1,
+  bgcolor: TABLE_BG,
+  boxShadow: "inset -1px 0 0 rgba(0, 0, 0, 0.08)",
+} as const;
 
 function loadStoredGroupBy(): GroupByField {
   try {
@@ -148,22 +134,15 @@ type Props = {
   onApplyFacet: (field: FacetField, value: string) => void;
 };
 
-function ChipCell({ width, children }: { width: number; children: ReactNode }) {
-  return (
-    <TableCell sx={{ width, maxWidth: width, whiteSpace: "nowrap", verticalAlign: "middle", overflow: "hidden", px: 0.75 }}>
-      {children}
-    </TableCell>
-  );
-}
-
 function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_COLUMNS }) {
   const title = hitTitle(hit);
   return (
     <TableRow hover>
       {columns.map((col) => {
+        const sx = { verticalAlign: "top", px: 1, ...(col.id === "title" ? STICKY_SX : {}) };
         if (col.id === "title") {
           return (
-            <TruncatedCell key={col.id} text={publicationLabel(hit) ? `${title} · ${publicationLabel(hit)}` : title}>
+            <TableCell key={col.id} sx={sx}>
               {hit.explorer_url ? (
                 <Link href={hit.explorer_url} target="_blank" rel="noreferrer" underline="hover">
                   {title}
@@ -171,44 +150,48 @@ function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_CO
               ) : (
                 title
               )}
-            </TruncatedCell>
+            </TableCell>
           );
         }
         if (col.id === "source") {
           return (
-            <ChipCell key={col.id} width={col.width!}>
-              <Stack direction="row" gap={0.5} sx={{ overflow: "hidden" }}>
+            <TableCell key={col.id} sx={sx}>
+              <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.5}>
                 <SourceChips hit={hit} />
               </Stack>
-            </ChipCell>
+            </TableCell>
           );
         }
-        if (col.id === "publication") {
-          const label = publicationLabel(hit);
+        if (col.id === "publication" || col.id === "flags") {
+          const empty = col.id === "publication" ? !publicationLabel(hit) : !hit.values.flags.length;
           return (
-            <TruncatedCell key={col.id} text={label ? publicationTooltip(hit) : "No publication information"} width={col.width}>
-              {label && hit.publication_url ? (
-                <Link href={hit.publication_url} target="_blank" rel="noreferrer" underline="hover">
-                  {label}
-                </Link>
+            <TableCell key={col.id} sx={sx}>
+              {empty ? (
+                <Typography variant="body2" color="text.secondary">
+                  —
+                </Typography>
               ) : (
-                label ?? "—"
+                <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.5}>
+                  {col.id === "publication" ? <PublicationChip hit={hit} /> : <FlagChips hit={hit} />}
+                </Stack>
               )}
-            </TruncatedCell>
+            </TableCell>
           );
         }
         if (col.id === "cells") {
           return (
-            <TruncatedCell key={col.id} text={hit.cell_count.toLocaleString()} width={col.width} align="right">
-              {formatCompactCount(hit.cell_count)}
-            </TruncatedCell>
+            <TableCell key={col.id} align="right" sx={sx}>
+              <Tooltip title={hit.cell_count.toLocaleString()} enterDelay={400}>
+                <span>{formatCompactCount(hit.cell_count)}</span>
+              </Tooltip>
+            </TableCell>
           );
         }
         const field = col.id as FacetField;
         return (
-          <ChipCell key={col.id} width={col.width!}>
-            <AttributeChips values={labelsOf(field, hit.values[field])} chipMaxWidth={TABLE_CHIP_MAX} wrap={false} />
-          </ChipCell>
+          <TableCell key={col.id} sx={sx}>
+            <ValueChips values={labelsOf(field, hit.values[field])} limit={4} />
+          </TableCell>
         );
       })}
     </TableRow>
@@ -239,6 +222,7 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
   }, [columns]);
 
   const visibleColumns = useMemo(() => TABLE_COLUMNS.filter((col) => columns.includes(col.id)), [columns]);
+  const tableWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
 
   const groups = useMemo(() => (view === "table" ? groupHits(rows, groupBy) : []), [view, rows, groupBy]);
 
@@ -377,12 +361,22 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
               </Typography>
             </Typography>
           ) : null}
-          <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2 }}>
-            <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
+          <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflowX: "auto", bgcolor: TABLE_BG }}>
+            <Table size="small" sx={{ tableLayout: "fixed", width: tableWidth, minWidth: "100%" }}>
               <TableHead>
                 <TableRow>
                   {visibleColumns.map((col) => (
-                    <TableCell key={col.id} align={col.id === "cells" ? "right" : "left"} sx={columnCellSx(col)}>
+                    <TableCell
+                      key={col.id}
+                      align={col.id === "cells" ? "right" : "left"}
+                      sx={{
+                        width: col.width,
+                        verticalAlign: "bottom",
+                        fontWeight: 600,
+                        px: 1,
+                        ...(col.id === "title" ? { ...STICKY_SX, zIndex: 2 } : {}),
+                      }}
+                    >
                       {col.label}
                     </TableCell>
                   ))}

@@ -64,7 +64,7 @@ from make_term_remappings import FACTORS
 from merge_datasets import clean_doi, norm_doi
 
 NA = "na"
-NA_LABEL = "NA (not annotated)"
+NA_LABEL = "NA"
 UNKNOWN_IDS = {"unknown", "na"}
 TERM_FIELDS = ("assay", "disease", "sex")
 FLAG_LABELS = {"merged": "merged across resources", "multi_species": "several species"}
