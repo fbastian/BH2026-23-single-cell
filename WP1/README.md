@@ -44,6 +44,7 @@ python scripts/merge_datasets.py \
   - datasets of different resources with the same DOI, the same organisms and the same cell count are merged too (only if unambiguous), and flagged with `"merged": true`. `--report` lists these merges.
 - Merged records keep the most complete information: lists (tissue, cell type, ...) are the union of the sources. A record of an older version of a dataset (different `dataset_version_id`) only fills empty fields. scFAIR copies of CELLxGENE datasets have no version id: it is read from the name of their H5AD file (`<dataset_version_id>.h5ad`).
 - Each output record has a `dataset_id` (`<source>:<source id>`) and a `sources` list with the provenance of every merged record.
+- DOIs are stored without URL encoding (Single Cell Portal gives e.g. `10.1016%2Fj.cell.2020.04.035`) and without `doi.org` prefix, and compared case-insensitively.
 
 ## 3. Generate the term remapping file
 
@@ -152,8 +153,9 @@ All options are mandatory. Use the files of steps 2 to 5. What the export does:
 - For assay, disease, sex and suspension type, `unknown`, `na` and an empty annotation are all "NA (not annotated)".
 - The resources of a dataset are listed with a link to the dataset in each (several for datasets merged across resources), and datasets are flagged when merged across resources or annotated with several species.
 - Datasets without a title (Single Cell Portal, ASAP, Bgee) get the collection name, or else the DOI label or the resource name, followed by the resource id.
+- Each dataset gets one publication, so that the page can count publications instead of datasets. In this order: its DOI; else the DOI of the other datasets of its CELLxGENE collection; else its CELLxGENE collection; else the dataset itself (no publication information: the dataset counts as one study). Only CELLxGENE has real collections: in the scFAIR export, the collection id of Bgee and Single Cell Portal datasets is the dataset's own accession, and ASAP uses a placeholder (`ASAP000000`) for all projects. Result: 608 publications for 2,540 datasets (421 DOIs, 11 CELLxGENE collections without DOI, 176 datasets without publication information, mostly Single Cell Portal: only 8% of its datasets have a DOI in the export). The DOI also groups the datasets of one paper across resources (e.g. Li et al. 2022, the Fly Cell Atlas: 42 ASAP datasets and 1 Bgee dataset).
 
-The terms file has one row per value of each field (`field`, `id`, `label`, `parent_ids`, `ancestor_ids`, `subsets`); for tissue, cell type and stage, the hierarchy comes from the TSV of step 4 and the subsets from the TSV of step 5. The page computes the counts and the roll-up in the browser.
+The terms file has one row per value of each field (`field`, `id`, `label`, `parent_ids`, `ancestor_ids`, `subsets`), including the publications (label: DOI label, e.g. "Siletti et al. (2023) Science", else collection name); for tissue, cell type and stage, the hierarchy comes from the TSV of step 4 and the subsets from the TSV of step 5. The page computes the counts and the roll-up in the browser.
 
 ## 7. Explore page
 

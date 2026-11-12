@@ -12,7 +12,7 @@ Static page (React + Vite + MUI, Nivo heatmap, [hyparquet](https://github.com/hy
 
 ## What the page shows
 
-- **Filters** (left): species, tissue, cell type, developmental stage, assay, disease, sex, suspension type, tissue type, resource, flags (merged across resources, several species). Values of a field are combined with OR, fields with AND. Tissue, cell type and stage are trees (composite-metazoan Uberon and CL, `is_a` + `part_of` within the factor domain): the arrow shows the more specific terms, and ticking a term also matches the datasets annotated with any of its descendants. The search box of a tree searches all its terms.
+- **Filters** (left): species, tissue, cell type, developmental stage, assay, disease, sex, suspension type, tissue type, resource, publication (searchable), flags (merged across resources, several species). Values of a field are combined with OR, fields with AND. Tissue, cell type and stage are trees (composite-metazoan Uberon and CL, `is_a` + `part_of` within the factor domain): the arrow shows the more specific terms, and ticking a term also matches the datasets annotated with any of its descendants. The search box of a tree searches all its terms.
 - **Pivot** (default view, opening on species x tissue in roll-up mode): number of datasets for two fields, e.g. species x tissue. For tissue, cell type and stage, each axis is either:
   - **Raw**: the terms as annotated (after remapping); a dataset annotated with "hippocampal formation" counts only in that column;
   - **Roll-up**: a dataset also counts for all the more general terms of its annotations (the hippocampal formation dataset also counts for brain, forebrain, ...). The columns are all the terms under the current term (the root at first), at any depth, sorted by number of datasets ("Show top" keeps the first ones). Click an underlined label to show only the terms under it, use the breadcrumb to go back up, or jump to any term. Datasets annotated with the current term itself and nothing more specific are in the column "... (not more specific)": at the root, these are the datasets without annotation.
@@ -21,10 +21,12 @@ Static page (React + Vite + MUI, Nivo heatmap, [hyparquet](https://github.com/hy
 
   The axes follow the side filters of their field: with "brain" ticked in the tissue filter, the tissue roll-up starts under brain (the breadcrumb still goes up); with several tissues ticked, the columns are the terms under each of them, merged (e.g. the parts of brain and of heart); in raw mode, and for the fields without hierarchy (e.g. species), only the selected values (and their more specific terms) are shown, not the other annotations of the matching datasets.
 
-  A dataset counts in every row and column it is annotated with: a dataset with two species counts in both species rows, a dataset with five tissues in five columns. Click a cell to list its datasets (it adds filters, exact ones for raw terms).
-- **Cards / Table**: the datasets matching the filters, with links to each resource, the DOI and the H5AD file.
+  **Count: Datasets / Publications.** With "Publications", each cell counts the distinct publications of its datasets: the datasets of a publication (same DOI, or same CELLxGENE collection without DOI) count once, and a dataset without publication information counts as one study (see step 6 of the [pipeline](../README.md)). The tooltip of a cell also gives its number of datasets.
 
-The initial view and filters can be set in the URL, with the value ids of the terms file: e.g. `?view=pivot&tissue=UBERON:0000955,UBERON:0000948&organism=NCBITaxon:9606`.
+  A dataset counts in every row and column it is annotated with: a dataset with two species counts in both species rows, a dataset with five tissues in five columns. Click a cell to list its datasets (it adds filters, exact ones for raw terms).
+- **Cards / Table**: the datasets matching the filters, with their publication (linked to the DOI or the CELLxGENE collection; its tooltip gives its number of datasets), links to each resource and the H5AD file. The table has a Publication column and can be grouped by publication.
+
+The initial view, filters and pivot count can be set in the URL, with the value ids of the terms file: e.g. `?view=pivot&count=publications&tissue=UBERON:0000955,UBERON:0000948&organism=NCBITaxon:9606`, or `?view=cards&publication=doi:10.1126/science.abk2432`.
 
 ## Run locally
 

@@ -340,7 +340,7 @@ export default function App() {
                 fullWidth
                 size="small"
                 type="search"
-                placeholder="Search titles, DOIs, species, tissues, cell types…"
+                placeholder="Search titles, publications, DOIs, species, tissues, cell types…"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 InputProps={{

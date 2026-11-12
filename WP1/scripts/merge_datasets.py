@@ -25,7 +25,9 @@ fields are taken from the highest-priority record that has a value. A record of 
 version of the dataset (its `dataset_version_id` differs from that of the highest-priority
 record having one) only fills fields that are empty in the current records: put the freshest
 source first. scFAIR copies of CELLxGENE datasets get their `dataset_version_id` from the name
-of their H5AD file. Missing term fields become empty lists. Output records have
+of their H5AD file. Missing term fields become empty lists. DOIs are stored without URL
+encoding and without doi.org prefix (case kept), and compared case-insensitively. Output
+records have
   dataset_id  "<slug>:<source_reference_id>" of the primary (highest-priority) record
   sources     one entry per merged record (source, source_reference_id, source_url,
               explorer_url, input_format, input_dataset_id)
@@ -43,6 +45,7 @@ import collections
 import csv
 import json
 import re
+import urllib.parse
 from pathlib import Path
 
 TERM_FIELDS = ("organism", "tissue", "cell_type", "development_stage", "sex", "disease", "assay",
@@ -62,6 +65,18 @@ def split_joined_terms(entries):
     return out
 
 
+def clean_doi(doi):
+    """DOI without URL encoding (e.g. '10.1016%2Fj.cell...' from Single Cell Portal), surrounding
+    spaces and doi.org/doi: prefix; case kept. None if empty."""
+    if not doi:
+        return None
+    doi = urllib.parse.unquote(str(doi)).strip()
+    for prefix in ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "http://dx.doi.org/", "doi:"):
+        if doi.lower().startswith(prefix):
+            doi = doi[len(prefix):]
+    return doi or None
+
+
 def normalise(rec):
     rec = dict(rec)
     for f in TERM_FIELDS:
@@ -69,6 +84,8 @@ def normalise(rec):
             rec[f] = split_joined_terms([e for e in rec[f] if isinstance(e, dict)])
         elif rec.get(f) is None:
             rec[f] = []  # missing field (e.g. self_reported_ethnicity outside CELLxGENE)
+    if "collection_doi" in rec:
+        rec["collection_doi"] = clean_doi(rec["collection_doi"])
     return rec
 
 
@@ -140,13 +157,9 @@ READERS = {"cxg": read_cxg, "scfair": read_scfair, "fenix": read_fenix}
 
 
 def norm_doi(doi):
-    if not doi:
-        return None
-    doi = doi.strip().lower()
-    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
-        if doi.startswith(prefix):
-            doi = doi[len(prefix):]
-    return doi or None
+    """DOI for comparisons: cleaned (clean_doi) and lower-cased (DOIs are case-insensitive)."""
+    doi = clean_doi(doi)
+    return doi.lower() if doi else None
 
 
 def is_empty(v):

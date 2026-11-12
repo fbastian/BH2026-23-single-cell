@@ -29,6 +29,7 @@ export const FACET_FIELDS = [
   "suspension_type",
   "tissue_type",
   "source",
+  "publication",
   "flags",
 ] as const;
 
@@ -47,6 +48,7 @@ export const FIELD_TITLES: Record<FacetField, string> = {
   suspension_type: "Suspension type",
   tissue_type: "Tissue type",
   source: "Resource",
+  publication: "Publication",
   flags: "Flags",
 };
 
@@ -64,6 +66,8 @@ export type ExperimentRow = {
   doi_label: string;
   collection_name: string;
   source_explorer_urls: string[];
+  /** doi.org link or collection page of the publication; empty without publication information. */
+  publication_url: string;
   search_blob: string;
   values: Record<FacetField, string[]>;
   /** Annotated terms and all their ancestors, per hierarchical field. */
@@ -84,6 +88,8 @@ type Catalog = {
   terms: Record<FacetField, Map<string, Term>>;
   children: Record<HierarchicalField, Map<string, string[]>>;
   roots: Record<HierarchicalField, string[]>;
+  /** Datasets per publication id. */
+  publicationSizes: Map<string, number>;
 };
 
 export type FacetCount = { value: string; count: number };
@@ -114,12 +120,31 @@ export const EXACT_PREFIX = "=";
 export type PivotResult = {
   rows: string[];
   cols: string[];
+  /** Counted units (datasets or publications) per cell. */
   matrix: number[][];
+  /** Datasets per cell (same as matrix when counting datasets). */
+  datasetMatrix: number[][];
   rowTotals: number[];
   colTotals: number[];
   maxCell: number;
+  /** Datasets in the pivot. */
   found: number;
+  /** Counted units in the pivot (datasets or publications). */
+  units: number;
 };
+
+/** Publication ids of datasets without publication information (one dataset = one study). */
+export const DATASET_PUBLICATION_PREFIX = "dataset:";
+
+/** Whether a publication id stands for a real publication or collection, not a lone dataset. */
+export function isPublication(id: string | undefined): id is string {
+  return Boolean(id) && !id!.startsWith(DATASET_PUBLICATION_PREFIX);
+}
+
+/** Number of datasets of a publication (whole catalog). */
+export function publicationSize(id: string): number {
+  return catalog?.publicationSizes.get(id) ?? 0;
+}
 
 let catalog: Catalog | null = null;
 let catalogPromise: Promise<Catalog> | null = null;
@@ -221,12 +246,17 @@ function buildCatalog(
       doi_label: String(r.doi_label ?? ""),
       collection_name: String(r.collection_name ?? ""),
       source_explorer_urls: asStrings(r.source_explorer_urls),
+      publication_url: String(r.publication_url ?? ""),
       search_blob: String(r.search_blob ?? ""),
       values,
       expanded,
     };
   });
-  return { rows, terms, children, roots };
+  const publicationSizes = new Map<string, number>();
+  for (const row of rows) {
+    for (const p of row.values.publication) publicationSizes.set(p, (publicationSizes.get(p) ?? 0) + 1);
+  }
+  return { rows, terms, children, roots, publicationSizes };
 }
 
 async function loadCatalog(): Promise<Catalog> {
@@ -449,19 +479,31 @@ function ancestorSet(field: HierarchicalField, id: string): Set<string> {
   return set;
 }
 
+/** Pivot counts: datasets, or publications (each dataset belongs to one publication or study). */
+export type CountUnit = "datasets" | "publications";
+
 export async function pivotCounts(
   rowAxis: PivotAxis,
   colAxis: PivotAxis,
   query: string,
   facets: FacetSelection,
-  options: { maxRows?: number; maxCols?: number } = {}
+  options: { maxRows?: number; maxCols?: number; countBy?: CountUnit } = {}
 ): Promise<PivotResult> {
   const maxRows = options.maxRows ?? 40;
   const maxCols = options.maxCols ?? 30;
+  const byPublication = options.countBy === "publications";
   const matched = filteredRows((await loadCatalog()).rows, query, facets);
-  const pairCounts = new Map<string, number>();
-  const rowTotals = new Map<string, number>();
-  const colTotals = new Map<string, number>();
+  // Distinct units (dataset ids, or publication ids) per cell, row value and column value.
+  const pairUnits = new Map<string, Set<string>>();
+  const pairDatasets = new Map<string, number>();
+  const rowUnits = new Map<string, Set<string>>();
+  const colUnits = new Map<string, Set<string>>();
+  const allUnits = new Set<string>();
+  const add = (map: Map<string, Set<string>>, key: string, unit: string) => {
+    const set = map.get(key);
+    if (set) set.add(unit);
+    else map.set(key, new Set([unit]));
+  };
   let found = 0;
 
   for (const row of matched) {
@@ -469,29 +511,32 @@ export async function pivotCounts(
     const cols = [...new Set(axisValues(row, colAxis))];
     if (!rows.length || !cols.length) continue;
     found += 1;
-    // A dataset counts once per row value, once per column value and once per cell.
-    for (const r of rows) rowTotals.set(r, (rowTotals.get(r) ?? 0) + 1);
-    for (const c of cols) colTotals.set(c, (colTotals.get(c) ?? 0) + 1);
+    const unit = byPublication ? row.values.publication[0] ?? row.id : row.id;
+    allUnits.add(unit);
+    // A dataset (or publication) counts once per row value, column value and cell.
+    for (const r of rows) add(rowUnits, r, unit);
+    for (const c of cols) add(colUnits, c, unit);
     for (const r of rows) {
       for (const c of cols) {
         const key = `${r}\0${c}`;
-        pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+        add(pairUnits, key, unit);
+        pairDatasets.set(key, (pairDatasets.get(key) ?? 0) + 1);
       }
     }
   }
 
-  const top = (totals: Map<string, number>, max: number) =>
-    [...totals.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const top = (units: Map<string, Set<string>>, max: number) =>
+    [...units.entries()]
+      .sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
       .slice(0, max)
       .map(([value]) => value);
-  const rowOrder = top(rowTotals, maxRows);
-  const colOrder = top(colTotals, maxCols);
+  const rowOrder = top(rowUnits, maxRows);
+  const colOrder = top(colUnits, maxCols);
 
   let maxCell = 0;
   const matrix = rowOrder.map((r) =>
     colOrder.map((c) => {
-      const n = pairCounts.get(`${r}\0${c}`) ?? 0;
+      const n = pairUnits.get(`${r}\0${c}`)?.size ?? 0;
       if (n > maxCell) maxCell = n;
       return n;
     })
@@ -501,9 +546,11 @@ export async function pivotCounts(
     rows: rowOrder,
     cols: colOrder,
     matrix,
-    rowTotals: rowOrder.map((r) => rowTotals.get(r) ?? 0),
-    colTotals: colOrder.map((c) => colTotals.get(c) ?? 0),
+    datasetMatrix: rowOrder.map((r) => colOrder.map((c) => pairDatasets.get(`${r}\0${c}`) ?? 0)),
+    rowTotals: rowOrder.map((r) => rowUnits.get(r)?.size ?? 0),
+    colTotals: colOrder.map((c) => colUnits.get(c)?.size ?? 0),
     maxCell,
     found,
+    units: allUnits.size,
   };
 }

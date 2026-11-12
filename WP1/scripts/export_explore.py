@@ -18,9 +18,22 @@ TSV (make_term_subsets.py), and writes two Parquet files loaded by the browser
   suspension_type    cell, nucleus or na ('na' and empty are both 'na')
   tissue_type        tissue types of the tissue entries (CELLxGENE only), else 'na'
   source             resources of the dataset (several for datasets merged across resources)
+  publication        the publication (or study) of the dataset, one per dataset, so that the
+                     page can count publications instead of datasets. Key, in this order:
+                     doi:<DOI> (lower case); else, if the dataset's collection has a DOI on
+                     other datasets, that DOI; else collection:<resource>:<collection id>;
+                     else dataset:<dataset id> (no publication information: the dataset counts
+                     as one study). Collection ids are used only for the resources of
+                     COLLECTION_RESOURCES (CELLxGENE: in the scFAIR export, the collection id of
+                     Bgee and Single Cell Portal datasets is the dataset's own accession, and
+                     ASAP has a placeholder, ASAP000000, for all projects), and a collection
+                     whose datasets have several DOIs is ignored. Label: DOI label (e.g. 'Siletti et al. (2023) Science'), else
+                     collection name, else DOI; the dataset title for dataset: keys; the DOI or
+                     id is appended to labels shared by different publications.
   flags              'merged' (merged across resources), 'multi_species' (several species)
   plus: id, title (falls back to collection name, then DOI label or resource name with the
   resource id), cell_count, explorer_url, h5ad_url, doi, doi_label, collection_name,
+  publication_url (doi.org link, or collection page; empty for dataset: keys),
   source_explorer_urls (explorer URL per entry of `source`), search_blob (text search).
 
 --out-terms: one row per value of each field: field, id, label, parent_ids, ancestor_ids,
@@ -48,14 +61,17 @@ import pyarrow.parquet as pq
 
 from make_term_ancestors import read_remappings, remapped_terms
 from make_term_remappings import FACTORS
+from merge_datasets import clean_doi, norm_doi
 
 NA = "na"
 NA_LABEL = "NA (not annotated)"
 UNKNOWN_IDS = {"unknown", "na"}
 TERM_FIELDS = ("assay", "disease", "sex")
 FLAG_LABELS = {"merged": "merged across resources", "multi_species": "several species"}
+# Resources whose collection_id groups the datasets of a publication (see 'publication' above)
+COLLECTION_RESOURCES = ("cxg",)
 LIST_COLUMNS = ("organism", *FACTORS, *TERM_FIELDS, "suspension_type", "tissue_type",
-                "source", "flags", "source_explorer_urls")
+                "source", "publication", "flags", "source_explorer_urls")
 
 
 def read_ancestors(path):
@@ -111,6 +127,59 @@ def title_of(d):
         else f"{d['source']['name']} {ref}"
 
 
+def publications(datasets):
+    """Publication (or study) of each dataset; see 'publication' in the module docstring.
+
+    Returns ({dataset_id: publication id}, {publication id: (label, url)}, {ignored collection:
+    its DOIs})."""
+    def collection(d):
+        c, slug = d.get("collection_id"), d["source"]["slug"]
+        return (slug, c) if c and slug in COLLECTION_RESOURCES and c != d["source_reference_id"] else None
+
+    coll_dois = collections.defaultdict(set)
+    for d in datasets:
+        if collection(d):
+            coll_dois[collection(d)].add(norm_doi(d.get("collection_doi")))
+    ignored = {c: sorted(x for x in dois if x) for c, dois in coll_dois.items()
+               if len(dois - {None}) > 1}
+
+    pub_of, members = {}, collections.defaultdict(list)
+    for d in datasets:
+        c = collection(d)
+        if c in ignored:
+            c = None
+        doi = norm_doi(d.get("collection_doi"))
+        if not doi and c and coll_dois[c] - {None}:
+            doi = next(iter(coll_dois[c] - {None}))  # DOI of the other datasets of the collection
+        key = f"doi:{doi}" if doi else f"collection:{c[0]}:{c[1]}" if c else f"dataset:{d['dataset_id']}"
+        pub_of[d["dataset_id"]] = key
+        members[key].append(d)
+
+    info = {}
+    for key, ds in members.items():
+        def most(field):
+            values = collections.Counter(d.get(field) for d in ds if d.get(field))
+            return values.most_common(1)[0][0] if values else None
+        if key.startswith("doi:"):
+            doi = clean_doi(most("collection_doi")) or key[4:]
+            info[key] = (most("collection_doi_label") or most("collection_name") or doi,
+                         f"https://doi.org/{doi}")
+        elif key.startswith("collection:"):
+            cid = ds[0]["collection_id"]
+            url = next((d["source_url"] for d in ds if cid in (d.get("source_url") or "")), "")
+            info[key] = (most("collection_name") or f"{ds[0]['source']['name']} collection {cid}", url)
+        else:
+            info[key] = (title_of(ds[0]), "")
+    by_label = collections.defaultdict(list)
+    for key, (label, _) in info.items():
+        by_label[label].append(key)
+    for label, keys in by_label.items():
+        if len(keys) > 1:  # different publications with the same label
+            for key in keys:
+                info[key] = (f"{label} [{key.split(':', 1)[1]}]", info[key][1])
+    return pub_of, info, ignored
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--datasets", type=Path, required=True,
@@ -129,6 +198,7 @@ def main():
     remap = read_remappings(args.remappings)
     hierarchy = read_ancestors(args.ancestors)
     fold = species_map(datasets)
+    pub_of, pub_info, ignored_collections = publications(datasets)
     with args.subsets.open(encoding="utf-8", newline="") as f:
         subsets = {(r["factor"], r["term_id"]): r["subsets"].split(";")
                    for r in csv.DictReader(f, delimiter="\t")}
@@ -179,6 +249,11 @@ def main():
         row["source_explorer_urls"] = [src[s][1] for s in order]
         labels["source"].update({s: src[s][0] for s in order})
 
+        pub = pub_of[d["dataset_id"]]
+        row["publication"] = [pub]
+        row["publication_url"] = pub_info[pub][1]
+        labels["publication"][pub] = pub_info[pub][0]
+
         row["flags"] = [f for f, on in (("merged", d.get("merged")),
                                         ("multi_species", len(species) > 1)) if on]
         labels["flags"].update({f: FLAG_LABELS[f] for f in row["flags"]})
@@ -210,7 +285,7 @@ def main():
     term_label = {(r["field"], r["id"]): r["label"] for r in term_rows}
     for row in rows:
         bits = [row["title"], row["id"], row["doi"], row["doi_label"], row["collection_name"]]
-        for field in ("organism", *FACTORS, *TERM_FIELDS, "source"):
+        for field in ("organism", *FACTORS, *TERM_FIELDS, "source", "publication"):
             bits += [term_label[(field, v)] for v in row[field] if v != NA]
         row["search_blob"] = " | ".join(b for b in bits if b)
 
@@ -238,6 +313,12 @@ def main():
     hidden = collections.Counter(r["field"] for r in term_rows if r["subsets"])
     for field, n in collections.Counter(r["field"] for r in term_rows).items():
         print(f"  {field:<18} {n:>5} values" + (f", {hidden[field]} in subsets" if hidden[field] else ""))
+    kinds = collections.Counter(p.split(":", 1)[0] for p in pub_info)
+    in_kind = collections.Counter(p.split(":", 1)[0] for p in pub_of.values())
+    print(f"  publications: {len(pub_info)} for {len(rows)} datasets: "
+          + ", ".join(f"{k} {kinds[k]} ({in_kind[k]} datasets)" for k in ("doi", "collection", "dataset")))
+    for (slug, cid), dois in sorted(ignored_collections.items()):
+        print(f"  collection {slug}:{cid} ignored for publications: its datasets have {len(dois)} DOIs")
     unknown = set(subsets) - {(r["field"], r["id"]) for r in term_rows}
     if unknown:
         print(f"warning: {len(unknown)} terms of the subset TSV are not in the ancestor TSV")

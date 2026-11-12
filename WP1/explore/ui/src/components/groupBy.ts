@@ -15,6 +15,7 @@ export const GROUP_BY_OPTIONS: { value: GroupByField; label: string }[] = [
       "disease",
       "suspension_type",
       "source",
+      "publication",
     ] as FacetField[]
   ).map((field) => ({ value: field as GroupByField, label: FIELD_TITLES[field] })),
 ];

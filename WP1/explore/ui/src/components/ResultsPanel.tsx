@@ -32,12 +32,22 @@ import {
 } from "../catalogQuery";
 import { EllipsisChip } from "./EllipsisChip";
 import { GROUP_BY_OPTIONS, groupHits, type GroupByField } from "./groupBy";
-import { AttributeChips, Hit, SourceChips, formatCompactCount, hitTitle, type ExperimentHit } from "./Hit";
+import {
+  AttributeChips,
+  Hit,
+  SourceChips,
+  formatCompactCount,
+  hitTitle,
+  publicationLabel,
+  publicationTooltip,
+  type ExperimentHit,
+} from "./Hit";
 import { PivotHeatmap } from "./PivotHeatmap";
 import type { ResultsView } from "./ViewToggle";
 
 const GROUP_STORAGE_KEY = "wp1-explore-group-by";
-const COLUMNS_STORAGE_KEY = "wp1-explore-table-columns";
+// v2: the Publication column was added to the default columns (2026-11-12)
+const COLUMNS_STORAGE_KEY = "wp1-explore-table-columns-v2";
 
 type TableColumnId = "title" | "source" | "cells" | FacetField;
 
@@ -62,11 +72,12 @@ const TABLE_COLUMNS: {
 }[] = [
   { id: "title", label: "Title", required: true },
   { id: "source", label: "Resource", width: 96 },
+  { id: "publication", label: "Publication", width: 180 },
   ...FIELD_COLUMNS.map((field) => ({ id: field as TableColumnId, label: FIELD_TITLES[field], width: 108 })),
   { id: "cells", label: "Cells", width: 76 },
 ];
 
-const DEFAULT_COLUMNS: TableColumnId[] = ["title", "source", "organism", "tissue", "cell_type", "cells"];
+const DEFAULT_COLUMNS: TableColumnId[] = ["title", "source", "publication", "organism", "tissue", "cell_type", "cells"];
 
 function columnCellSx(col: (typeof TABLE_COLUMNS)[number]) {
   return {
@@ -152,7 +163,7 @@ function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_CO
       {columns.map((col) => {
         if (col.id === "title") {
           return (
-            <TruncatedCell key={col.id} text={hit.doi_label ? `${title} · ${hit.doi_label}` : title}>
+            <TruncatedCell key={col.id} text={publicationLabel(hit) ? `${title} · ${publicationLabel(hit)}` : title}>
               {hit.explorer_url ? (
                 <Link href={hit.explorer_url} target="_blank" rel="noreferrer" underline="hover">
                   {title}
@@ -170,6 +181,20 @@ function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_CO
                 <SourceChips hit={hit} />
               </Stack>
             </ChipCell>
+          );
+        }
+        if (col.id === "publication") {
+          const label = publicationLabel(hit);
+          return (
+            <TruncatedCell key={col.id} text={label ? publicationTooltip(hit) : "No publication information"} width={col.width}>
+              {label && hit.publication_url ? (
+                <Link href={hit.publication_url} target="_blank" rel="noreferrer" underline="hover">
+                  {label}
+                </Link>
+              ) : (
+                label ?? "—"
+              )}
+            </TruncatedCell>
           );
         }
         if (col.id === "cells") {

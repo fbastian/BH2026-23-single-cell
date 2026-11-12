@@ -1,6 +1,15 @@
 import type { ReactNode } from "react";
 import { Card, CardContent, Chip, Link, Stack, Tooltip, Typography } from "@mui/material";
-import { FIELD_TITLES, labelsOf, termLabel, type ExperimentRow, type FacetField } from "../catalogQuery";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import {
+  FIELD_TITLES,
+  isPublication,
+  labelsOf,
+  publicationSize,
+  termLabel,
+  type ExperimentRow,
+  type FacetField,
+} from "../catalogQuery";
 import { EllipsisChip } from "./EllipsisChip";
 
 export type ExperimentHit = ExperimentRow;
@@ -87,6 +96,38 @@ export function SourceChips({ hit }: { hit: ExperimentHit }) {
   );
 }
 
+/** Label of the dataset's publication, or null without publication information. */
+export function publicationLabel(hit: ExperimentHit): string | null {
+  const pub = hit.values.publication[0];
+  return isPublication(pub) ? termLabel("publication", pub) : null;
+}
+
+/** Tooltip of a publication: its label and its number of datasets in the explorer. */
+export function publicationTooltip(hit: ExperimentHit): string {
+  const pub = hit.values.publication[0];
+  const n = isPublication(pub) ? publicationSize(pub) : 0;
+  return `Publication: ${publicationLabel(hit)}${n > 1 ? ` · ${n} datasets in this explorer` : ""}`;
+}
+
+/** Chip of the dataset's publication (link to the DOI or collection); nothing without one. */
+export function PublicationChip({ hit, maxWidth = 260 }: { hit: ExperimentHit; maxWidth?: number }) {
+  const label = publicationLabel(hit);
+  if (!label) return null;
+  const url = hit.publication_url;
+  return (
+    <Tooltip title={publicationTooltip(hit)} enterDelay={300}>
+      <Chip
+        size="small"
+        variant="outlined"
+        icon={<ArticleOutlinedIcon />}
+        label={label}
+        sx={{ maxWidth }}
+        {...(url ? { component: "a", href: url, target: "_blank", rel: "noreferrer", clickable: true } : {})}
+      />
+    </Tooltip>
+  );
+}
+
 function FacetBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Stack spacing={0.25} minWidth={0}>
@@ -143,19 +184,7 @@ export function Hit({ hit }: { hit: ExperimentHit }) {
           {hit.values.flags.map((flag) => (
             <Chip key={flag} size="small" color="warning" variant="outlined" label={termLabel("flags", flag)} />
           ))}
-          {hit.doi ? (
-            <Chip
-              size="small"
-              variant="outlined"
-              component="a"
-              href={`https://doi.org/${hit.doi}`}
-              target="_blank"
-              rel="noreferrer"
-              clickable
-              label={hit.doi_label || hit.doi}
-              sx={{ maxWidth: 220 }}
-            />
-          ) : null}
+          <PublicationChip hit={hit} />
           {hit.h5ad_url ? (
             <Chip size="small" variant="outlined" component="a" href={hit.h5ad_url} clickable label="H5AD" />
           ) : null}

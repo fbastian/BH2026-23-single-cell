@@ -30,6 +30,7 @@ import {
   childrenOf,
   isHierarchical,
   pivotCounts,
+  type CountUnit,
   rootsOf,
   termLabel,
   type FacetField,
@@ -39,6 +40,18 @@ import {
 } from "../catalogQuery";
 
 const STORAGE_KEY = "wp1-explore-pivot-axes";
+const COUNT_STORAGE_KEY = "wp1-explore-pivot-count";
+
+/** Initial count unit: URL (?count=publications), else the last choice, else datasets. */
+function loadCountBy(): CountUnit {
+  const fromUrl = new URLSearchParams(window.location.search).get("count");
+  if (fromUrl === "publications" || fromUrl === "datasets") return fromUrl;
+  try {
+    return localStorage.getItem(COUNT_STORAGE_KEY) === "publications" ? "publications" : "datasets";
+  } catch {
+    return "datasets";
+  }
+}
 const TOP_OPTIONS = [15, 30, 60, 120];
 const MAX_LABEL = 34;
 
@@ -136,6 +149,7 @@ function RowLabels({
   height,
   canDrill,
   onDrill,
+  unit,
 }: {
   rows: string[];
   totals: number[];
@@ -145,6 +159,7 @@ function RowLabels({
   height: number;
   canDrill: (value: string) => boolean;
   onDrill: (value: string) => void;
+  unit: string;
 }) {
   return (
     <Stack
@@ -170,7 +185,7 @@ function RowLabels({
             key={value}
             variant="caption"
             noWrap
-            title={`${label} (${id}): ${(totals[i] ?? 0).toLocaleString()} datasets${clickable ? " · click to show only the terms under it" : ""}`}
+            title={`${label} (${id}): ${(totals[i] ?? 0).toLocaleString()} ${unit}${clickable ? " · click to show only the terms under it" : ""}`}
             onClick={clickable ? () => onDrill(value) : undefined}
             sx={{
               height: CELL_HEIGHT,
@@ -328,6 +343,16 @@ function AxisBreadcrumbs({
 export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
   const [axes, setAxes] = useState(loadAxes);
   const [top, setTop] = useState(30);
+  const [countBy, setCountBy] = useState<CountUnit>(loadCountBy);
+  const unit = countBy === "publications" ? "publications" : "datasets";
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COUNT_STORAGE_KEY, countBy);
+    } catch {
+      // ignore
+    }
+  }, [countBy]);
   const [data, setData] = useState<PivotResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -370,7 +395,7 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
         { field: axes.col.field, node: colNode, scope: colScope },
         query,
         facets,
-        { maxRows: top, maxCols: top }
+        { maxRows: top, maxCols: top, countBy }
       )
         .then((result) => {
           if (!cancelled) {
@@ -389,7 +414,7 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [axes.row.field, axes.col.field, rowNode, colNode, rowScope, colScope, query, facets, top]);
+  }, [axes.row.field, axes.col.field, rowNode, colNode, rowScope, colScope, query, facets, top, countBy]);
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -436,7 +461,7 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
             }}
           >
             <title>
-              {`${label} (${value.startsWith(SELF_PREFIX) ? value.slice(SELF_PREFIX.length) : value}): ${total.toLocaleString()} datasets`}
+              {`${label} (${value.startsWith(SELF_PREFIX) ? value.slice(SELF_PREFIX.length) : value}): ${total.toLocaleString()} ${unit}`}
               {clickable ? " · click to show only the terms under it" : ""}
             </title>
             {shorten(label)}
@@ -479,14 +504,41 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
             ))}
           </Select>
         </FormControl>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="body2" color="text.secondary">
+            Count
+          </Typography>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            color="primary"
+            value={countBy}
+            onChange={(_, next: CountUnit | null) => {
+              if (next) setCountBy(next);
+            }}
+          >
+            <ToggleButton value="datasets" title="Number of datasets">
+              Datasets
+            </ToggleButton>
+            <ToggleButton
+              value="publications"
+              title="Number of publications: the datasets of a publication (same DOI, or same CELLxGENE collection) count once; a dataset without publication information counts as one study"
+            >
+              Publications
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
       </Stack>
       <AxisBreadcrumbs title="Rows" axis={axes.row} path={rowPath} scope={rowScope} onChange={setAxis("row")} />
       <AxisBreadcrumbs title="Columns" axis={axes.col} path={colPath} scope={colScope} onChange={setAxis("col")} />
 
       {data ? (
         <Typography variant="body2" color="text.secondary">
-          {data.found.toLocaleString()} datasets · a dataset counts in every row and column it is
-          annotated with (several species, tissues, ...) · click a cell to list its datasets
+          {countBy === "publications"
+            ? `${data.units.toLocaleString()} publications (${data.found.toLocaleString()} datasets) · a publication counts once per row, column and cell, whatever its number of datasets; a dataset without publication information counts as one study`
+            : `${data.found.toLocaleString()} datasets`}{" "}
+          · a dataset counts in every row and column it is annotated with (several species,
+          tissues, ...) · click a cell to list its datasets
           {axes.row.rollup || axes.col.rollup ? " · roll-up: a dataset also counts for all the more general terms of its annotations; click an underlined label to show only the terms under it" : ""}
         </Typography>
       ) : null}
@@ -517,6 +569,7 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
               height={chartHeight}
               canDrill={(value) => canDrill(axes.row, value)}
               onDrill={(value) => drill("row", value)}
+              unit={unit}
             />
             <HeatMap
               width={chartWidth}
@@ -566,8 +619,18 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
                     {termLabel(axes.col.field, String(cell.data.x))}
                   </Typography>
                   <Typography variant="body2" fontWeight={700}>
-                    {(cell.value ?? 0).toLocaleString()} datasets
+                    {(cell.value ?? 0).toLocaleString()} {unit}
                   </Typography>
+                  {countBy === "publications" ? (
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      {(
+                        data.datasetMatrix[data.rows.indexOf(String(cell.serieId))]?.[
+                          data.cols.indexOf(String(cell.data.x))
+                        ] ?? 0
+                      ).toLocaleString()}{" "}
+                      datasets
+                    </Typography>
+                  ) : null}
                 </Paper>
               )}
               legends={[
@@ -582,7 +645,7 @@ export function PivotHeatmap({ query, facets, onApplyCell }: Props) {
                   tickSize: 3,
                   tickSpacing: 4,
                   tickOverlap: false,
-                  title: "Datasets",
+                  title: countBy === "publications" ? "Publications" : "Datasets",
                   titleAlign: "start",
                   titleOffset: 4,
                 },
