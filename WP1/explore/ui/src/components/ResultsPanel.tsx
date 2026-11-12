@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
   Button,
   Checkbox,
@@ -206,6 +206,7 @@ function HitRow({ hit, columns }: { hit: ExperimentHit; columns: typeof TABLE_CO
 
 export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFacet, countBy }: Props) {
   const [groupBy, setGroupBy] = useState<GroupByField>(() => loadStoredGroupBy());
+  const groupWritten = useRef(false);
   const [columns, setColumns] = useState<TableColumnId[]>(() => loadStoredColumns());
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState<HTMLElement | null>(null);
@@ -216,7 +217,8 @@ export function ResultsPanel({ view, rows, query, facets, onOpenHits, onApplyFac
     } catch {
       // ignore
     }
-    setUrlParams({ group: groupBy === "none" ? null : groupBy });
+    setUrlParams({ group: groupBy === "none" ? null : groupBy }, groupWritten.current ? "push" : "replace");
+    groupWritten.current = true;
     setActiveChip(null);
   }, [groupBy]);
 

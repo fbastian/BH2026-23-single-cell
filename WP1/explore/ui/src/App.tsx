@@ -91,6 +91,25 @@ function toggleValue(values: string[] | undefined, value: string): string[] {
     : [...current, value];
 }
 
+function facetsFromUrl(): FacetSelection {
+  const out: FacetSelection = {};
+  for (const field of FACET_FIELDS) {
+    const values = urlList(field);
+    if (values.length) out[field] = values;
+  }
+  return out;
+}
+
+/** Pivot view by default. */
+function viewFromUrl(): ResultsView {
+  const v = urlParam("view");
+  return v === "cards" || v === "table" ? v : "pivot";
+}
+
+function pageFromUrl(): number {
+  return Math.max(0, (Number(urlParam("page")) || 1) - 1);
+}
+
 export default function App() {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -98,21 +117,14 @@ export default function App() {
   // that the page can be shared as a link: ?view=table&q=...&tissue=UBERON:0000955,...&page=2
   const [query, setQuery] = useState(() => urlParam("q") ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(() => urlParam("q") ?? "");
-  const [facets, setFacets] = useState<FacetSelection>(() => {
-    const out: FacetSelection = {};
-    for (const field of FACET_FIELDS) {
-      const values = urlList(field);
-      if (values.length) out[field] = values;
-    }
-    return out;
-  });
-  // Pivot view by default.
-  const [view, setView] = useState<ResultsView>(() => {
-    const v = urlParam("view");
-    return v === "cards" || v === "table" ? v : "pivot";
-  });
-  const [page, setPage] = useState(() => Math.max(0, (Number(urlParam("page")) || 1) - 1));
+  const [facets, setFacets] = useState<FacetSelection>(facetsFromUrl);
+  const [view, setView] = useState<ResultsView>(viewFromUrl);
+  const [page, setPage] = useState(pageFromUrl);
   const [linkCopied, setLinkCopied] = useState(false);
+  // Incremented by the back/forward buttons (remounts the results, which re-read the URL) and
+  // by "Clear" (resets the search boxes and trees of the side filters).
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const [clearVersion, setClearVersion] = useState(0);
   const [rows, setRows] = useState<ExperimentRow[]>([]);
   const [found, setFound] = useState(0);
   const [foundPublications, setFoundPublications] = useState(0);
@@ -157,16 +169,46 @@ export default function App() {
     setPage(0);
   }, [searchKey]);
 
-  // The state in the URL, for sharing links.
+  // The state in the URL, for sharing links and the back button: a history entry per change,
+  // except at start (normalising the URL) and for the search text alone (typing).
+  const lastWritten = useRef<string | null>(null);
   useEffect(() => {
-    setUrlParams({
-      view,
-      count: countBy,
-      q: debouncedQuery.trim() || null,
-      page: page > 0 ? String(page + 1) : null,
-      ...Object.fromEntries(FACET_FIELDS.map((field) => [field, facets[field] ?? null])),
-    });
+    const written = JSON.stringify([view, countBy, page, facets]);
+    const mode = lastWritten.current === null || lastWritten.current === written ? "replace" : "push";
+    lastWritten.current = written;
+    setUrlParams(
+      {
+        view,
+        count: countBy,
+        q: debouncedQuery.trim() || null,
+        page: page > 0 ? String(page + 1) : null,
+        ...Object.fromEntries(FACET_FIELDS.map((field) => [field, facets[field] ?? null])),
+      },
+      mode
+    );
   }, [view, countBy, debouncedQuery, page, facets]);
+
+  // Back/forward buttons: the state comes back from the URL.
+  useEffect(() => {
+    const onPopState = () => {
+      const q = urlParam("q") ?? "";
+      const nextFacets = facetsFromUrl();
+      const nextView = viewFromUrl();
+      const nextPage = pageFromUrl();
+      const nextCount = loadCountBy();
+      previousSearchKey.current = JSON.stringify([q, nextFacets]);
+      lastWritten.current = JSON.stringify([nextView, nextCount, nextPage, nextFacets]);
+      setQuery(q);
+      setDebouncedQuery(q);
+      setFacets(nextFacets);
+      setView(nextView);
+      setPage(nextPage);
+      setCountBy(nextCount);
+      setHistoryVersion((v) => v + 1);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const copyLink = () => {
     navigator.clipboard?.writeText(window.location.href).then(() => setLinkCopied(true), () => undefined);
@@ -318,6 +360,7 @@ export default function App() {
               onClick={() => {
                 setQuery("");
                 setFacets({});
+                setClearVersion((v) => v + 1);
               }}
             >
               Clear
@@ -346,6 +389,7 @@ export default function App() {
                   open={OPEN_PANELS.has(field)}
                   onToggle={(value) => onToggleFacet(field, value)}
                   countBy={countBy}
+                  resetSignal={clearVersion}
                 />
               </ListItem>
             ))}
@@ -438,6 +482,7 @@ export default function App() {
             ) : null}
 
             <ResultsPanel
+              key={historyVersion}
               view={view}
               rows={rows}
               query={debouncedQuery}

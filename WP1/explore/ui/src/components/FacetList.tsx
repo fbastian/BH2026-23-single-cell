@@ -43,6 +43,8 @@ type Props = {
   limit?: number;
   onToggle: (value: string) => void;
   countBy: CountUnit;
+  /** Changed by "Clear": empties the search box and goes back to the top of the tree. */
+  resetSignal?: number;
 };
 
 /** Values to list: by count, then label. */
@@ -68,6 +70,7 @@ export function FacetList({
   limit = 12,
   onToggle,
   countBy,
+  resetSignal,
 }: Props) {
   const hierarchical = isHierarchical(field);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
@@ -82,6 +85,11 @@ export function FacetList({
     return tops.length === 1 ? tops : [];
   });
   const [path, setPath] = useState<string[]>(topPath);
+  useEffect(() => {
+    setFilter("");
+    setPath(topPath);
+    setShowMore(false);
+  }, [resetSignal, topPath]);
 
   useEffect(() => {
     if (!expanded) return;

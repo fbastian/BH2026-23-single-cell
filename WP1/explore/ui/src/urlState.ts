@@ -1,7 +1,10 @@
 /**
  * Page state in the URL query string, so that a link reopens the same view (filters, search,
  * pivot axes and drill-down, ...). Each component reads its parameters at start and writes
- * them back when they change, with history.replaceState (no new history entry per click).
+ * them back when they change. A user change creates a history entry ("push"), so that the
+ * back button returns to the previous state (App listens to popstate and re-reads the URL);
+ * writes triggered by the same action within PUSH_MERGE_MS go into the same entry, and the
+ * first write of a component (normalising the URL at start) replaces the current entry.
  *
  * Lists are comma-separated, each value URI-encoded, so that a comma inside a value cannot
  * break a list; ':', '/', '=' and '|' are left readable (e.g. tissue=UBERON:0002048).
@@ -46,8 +49,18 @@ export function urlList(name: string): string[] {
   return raw ? raw.split(",").map(decode).filter(Boolean) : [];
 }
 
-/** Set parameters of the URL (a list is written comma-separated); null or empty removes one. */
-export function setUrlParams(updates: Record<string, string | string[] | null | undefined>): void {
+const PUSH_MERGE_MS = 400;
+let lastPush = 0;
+
+/**
+ * Set parameters of the URL (a list is written comma-separated); null or empty removes one.
+ * mode "push" creates a history entry (merged with one pushed less than PUSH_MERGE_MS ago:
+ * the cascade of updates of one user action), "replace" updates the current entry.
+ */
+export function setUrlParams(
+  updates: Record<string, string | string[] | null | undefined>,
+  mode: "push" | "replace" = "replace"
+): void {
   const params = rawParams();
   for (const [key, value] of Object.entries(updates)) {
     if (value == null || value === "" || (Array.isArray(value) && !value.length)) params.delete(key);
@@ -55,7 +68,12 @@ export function setUrlParams(updates: Record<string, string | string[] | null | 
   }
   const search = [...params].map(([k, v]) => `${encode(k)}=${v}`).join("&");
   const next = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`;
-  if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+  if (next === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+  const now = Date.now();
+  if (mode === "push" && now - lastPush > PUSH_MERGE_MS) {
+    lastPush = now;
+    window.history.pushState(null, "", next);
+  } else {
     window.history.replaceState(window.history.state, "", next);
   }
 }

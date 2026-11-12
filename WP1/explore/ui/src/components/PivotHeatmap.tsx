@@ -418,9 +418,13 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
     }
   }, [axes]);
 
-  // The pivot state in the URL, for sharing links.
+  // The pivot state in the URL, for sharing links and the back button (a history entry per
+  // change; the first write of the component only normalises the URL).
+  const pivotWritten = useRef(false);
   useEffect(() => {
     const mode = (a: AxisState) => (isHierarchical(a.field) ? (a.rollup ? "rollup" : "raw") : null);
+    const historyMode = pivotWritten.current ? "push" : "replace";
+    pivotWritten.current = true;
     setUrlParams({
       rows: axes.row.field,
       rows_mode: mode(axes.row),
@@ -429,7 +433,7 @@ export function PivotHeatmap({ query, facets, countBy, onApplyCell }: Props) {
       cols_mode: mode(axes.col),
       cols_path: axes.col.path,
       top: String(top),
-    });
+    }, historyMode);
   }, [axes, top]);
 
   useEffect(() => {
