@@ -1,0 +1,41 @@
+Lineage	Mouse type	HLiCA type	SAMap score	Gene pairs	Top gene pairs (human/mouse)
+Hepatocyte	Hepatocyte	Ribosomal+ Hepatocyte	0.62	999	FABP1, APOC3, APOA2, RBP4, ORM1, ORM2/Orm1
+Hepatocyte	Hepatocyte	Mito+ Hepatocyte	0.55	997	SERPINF2/Serpina3k, MST1/F2, MST1/Plg, FGB, FGA, FGL1/Fgb
+Hepatocyte	Hepatocyte	Periportal Hepatocyte	0.46	997	CYP3A5/Cyp3a25, SLC22A25/Slc22a30, CPS1, A1CF, MLXIPL, SLC7A2
+Hepatocyte	Hepatocyte	Pericentral Hepatocyte	0.46	994	SLCO1B3-SLCO1B7/Slco1b2, CYP3A4/Cyp3a25, SLCO1B3-SLCO1B7/Slco1a1, CYP3A43/Cyp3a25, SLC22A25/Slc22a30, IL1RAPL2/Gm20319
+Cholangiocyte	Cholangiocyte	LAMC2+ Cholangiocyte	0.88	937	PKHD1, CTNND2, BICC1, GLIS3, SHANK2, CDH1/Cdh6
+Cholangiocyte	Cholangiocyte	ApoLipo	0.79	960	PKHD1, CTNND2, BICC1, GLIS3, THSD4, SHANK2
+Cholangiocyte	Cholangiocyte	Keratin	0.77	883	CLDN10/Cldn3, KRT7/Krt8, KRT7/Krt18, CLDN10/Cldn7, TM4SF4, SPP1
+Cholangiocyte	Cholangiocyte	CXCL8+ Keratin	0.77	682	KRT7/Krt8, KRT7/Krt18, KRT18/Krt8, KRT8, KRT18, TACSTD2/Epcam
+Cholangiocyte	Cholangiocyte	Mucus Secreting	0.6	684	TSPAN8, KRT19/Krt18, KRT19, CLDN4/Cldn7, CLDN4/Cldn3, CLDN3/Cldn7
+Endothelial	Endothelial	Periportal LSEC	0.8	959	STAB2/Stab1, PTPRB, STAB2, OIT3, FLT1/Kdr, FLT1/Flt4
+Endothelial	Endothelial	Portal Vein	0.73	887	MECOM, CLEC14A, EFNB2/Efnb1, PTPRB, TM4SF1, EFNB2
+Endothelial	Endothelial	Hepatic Artery	0.66	926	PODXL, NHERF2/Slc9a3r2, TIMP3, SOX18, EFNB2/Efnb1, CLEC14A
+Endothelial	Endothelial	Vascular Endothelial Cell	0.63	944	PTPRB, TLL1/Nrp1, ENG, TEK, FLT1/Kdr, HSPG2
+Endothelial	Endothelial	Central Venous LSEC	0.58	731	OIT3, STAB1, STAB1/Stab2, DNASE1L3, KDR, STAB2/Stab1
+Endothelial	Endothelial	LSEC	0.49	949	OIT3, FAM167B, DNASE1L3, KDR, KDR/Flt4, GNG11
+Mesenchymal	Fibroblast	Portal Fibroblast	0.83	994	DCN, COL14A1, LUM/Dcn, PRKG1, DCN/Lrrc4c, LAMA2
+Mesenchymal	Fibroblast	Hepatic Stellate Cell	0.66	951	HGF, CCBE1, PTH1R/Vipr1, HGF/Masp1, COLEC10, PTH1R
+Myeloid	KC	Kupffer Cells	0.76	908	CD5L, CD163/Cd5l, CD5L/Cd163, CD163, SDC3, MSR1/Cd5l
+Myeloid	Monocyte	Non-classical Monocytes	0.71	899	MS4A7/Ms4a6c, IFITM2/Ifitm6, S100Z/S100a4, S100A4, MS4A7/Ms4a6b, CTSS
+Myeloid	Monocyte	BAG3+ Monocytes	0.56	876	LYZ/Lyz2, S100A9/S100a4, VCAN/Clec4a1, CYBB, S100A4, CTSS
+Myeloid	Monocyte	Activated Monocytes	0.53	895	LYZ/Lyz2, SOD2/Ccl9, S100A9/S100a4, CYBB, VCAN/Clec4a1, CCL3L3/Ccl9
+Myeloid	Monocyte	Classical Monocytes	0.42	877	S100A9/S100a4, LYZ/Lyz2, VCAN/Clec4a1, S100A12/S100a4, S100A9/S100a6, S100A4
+Myeloid	Neutrophil	Neutrophils	0.81	958	CSF3R, CXCR2, CXCR2/Ccr1, MXD1, CXCR2/C5ar1, S100A8
+DC	cDC1	Type 1 cDCs	0.86	749	CLEC9A, WDFY4, XCR1, RAB7B, PPT1, C1orf54/BC028528
+DC	cDC2	DCmac	0.7	777	CLEC5A/Clec4b1, CLEC5A/Cd209a, HLA-DPA1/H2-Eb1, HLA-DMB/H2-Eb1, HLA-DPB1/H2-Eb1, CLEC5A/Clec4a2
+DC	cDC2	Type 2 cDCs	0.63	864	HLA-DPB1/H2-Eb1, HLA-DPA1/H2-Eb1, HLA-DQA1/H2-Aa, HLA-DQB1/H2-Eb1, HLA-DRB1/H2-Eb1, HLA-DRA/H2-Eb1
+DC	Mig. cDCs	migDCs	0.82	696	CCR7, CCL22, IL4I1, FSCN1, CCL22/Ccl17, SLCO5A1
+DC	Transitional DC	pDC	0.41	831	CLEC4C/Cd209d, CLEC4C/Cd209a, IRF7/Irf8, BCL11A, IRF8, RUNX2
+DC	pDCs	pDC	0.77	834	GZMB/Klk1, P2RY14/Ccr9, PLD4, IRF7/Irf8, CLEC4C/Cd209d, BCL11A
+B/plasma	B cell	B Cell	0.84	876	MS4A1, CD79A, BANK1, PAX5, CD79B, IGHD
+B/plasma	B cell	IgA B cells	0.74	191	IGHG1/Igha, IGHG3/Igha, IGHG4/Igha, IGHG1/Iglc1, IGHG1/Igkc, IGHG2/Igha
+B/plasma	B cell	IgG B cells	0.65	201	JCHAIN, IGHA1/Igha, MZB1, IGHA2/Igha, IGLC2/Igkc, IGLC2/Iglc1
+B/plasma	B cell	Plasma B Cell	0.43	391	JCHAIN, MZB1, IGHG1/Igha, IGHG3/Igha, IGHA1/Igha, IGKC/Iglc1
+T/NK/ILC	T cell	Regulatory T Cell	0.69	920	CTLA4/Cd28, TRAC, CD3D, TRBC2, CD3G/Cd3d, BCL11B
+T/NK/ILC	T cell	Helper T Cell	0.6	906	IL7R, CD3D, TRAC, CD3G/Cd3d, BCL11B, LEF1/Tcf7
+T/NK/ILC	T cell	MAIT T Cell	0.53	907	IL7R, TRAC, CD3D, CD3G/Cd3d, CXCR6, BCL11B
+T/NK/ILC	NK cell	Dim NK Cell	0.65	970	PRF1, GZMB/Gzma, KLRF1/Klra4, GZMB/Cma1, NKG7, GZMH/Gzma
+T/NK/ILC	ILC1	Bright NK Cell	0.66	983	XCL1, XCL2/Xcl1, IL2RB, CD160, KLRF1/Klrb1c, KLRF1/Klrb1b
+T/NK/ILC	ILC1	Exhausted CD8 T Cell	0.52	993	GZMK/Gzmb, GZMA/Gzmb, CCL5, GZMK/Gzma, GZMH/Gzmb, GZMM/Gzmb
+T/NK/ILC	ILC1	CD8 T Cell	0.46	950	GZMK/Gzmb, GZMA/Gzmb, CCL5, GZMH/Gzmb, GZMK/Gzma, GZMA

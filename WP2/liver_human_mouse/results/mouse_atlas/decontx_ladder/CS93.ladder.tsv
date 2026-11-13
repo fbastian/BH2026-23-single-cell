@@ -1,0 +1,5 @@
+sample	setting	n	median_contamination	nonepi_Alb_cp10k_raw	nonepi_Alb_cp10k_dx	nonepi_Alb_removed	hep_Alb_kept	hep_umis_kept	nonepi_umis_kept	lt200
+CS93	default_est	16300	0.1025	114	79.52	0.4715	0.9605	0.9525	0.8137	293
+CS93	1_100	16300	0.202	114	51.68	0.7409	0.9361	0.911	0.7239	712
+CS93	1_300	16300	0.2516	114	23.74	0.909	0.9173	0.8627	0.682	1262
+CS93	1_1000	16300	0.3265	114	0.6572	0.9972	0.8947	0.7812	0.6148	2096

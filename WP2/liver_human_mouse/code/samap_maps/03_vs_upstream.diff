@@ -1,0 +1,49 @@
+--- /home/ubuntu/liver_cross_species/BH2026-23-single-cell/WP2/scripts/03_build_mmseqs_maps.py	2026-11-11 11:46:30.390297424 +0000
++++ 03_build_mmseqs_maps_liver.py	2026-11-11 12:05:07.202735206 +0000
+@@ -22,13 +22,15 @@
+ 
+ 
+ # Same project directory and FASTA files as your scripts/notebook.
+-ROOT = Path("path/to/WP2")
++# LIVER ADAPTATION 2026-11-11: copied from fbastian/BH2026-23-single-cell WP2/scripts (UPSTREAM_COMMIT.txt);
++# changes: ROOT, species pair hs/mm and file names, THREADS. Search parameters unchanged.
++ROOT = Path("/mnt/masld_vault/cross_species/samap_maps/liver_hsmm")
+ FASTAS = {
+-    "mm": ROOT / "refs/samap/mouse.GRCm38.GENCODEvM12.samap.fa",
+-    "dr": ROOT / "refs/samap/zebrafish.GRCz11.Ensembl116.samap.fa",
++    "hs": ROOT / "refs/samap/human.GRCh38.GENCODEv48.samap.fa",
++    "mm": ROOT / "refs/samap/mouse.GRCm38.GENCODEvM18.samap.fa",
+ }
+-OUT = ROOT / "maps_mmseqs" / "mmdr"
+-THREADS = 24
++OUT = ROOT / "maps_mmseqs" / "hsmm"
++THREADS = 20  # TotalVI shares the VM
+ EVALUE = 1e-6
+ SENSITIVITY = 7.5
+ # Prefilter candidates per translated query; increase for a sensitivity check.
+@@ -99,14 +101,14 @@
+     temporary_root = ROOT / "tmp"
+     temporary_root.mkdir(parents=True, exist_ok=True)
+ 
+-    work = Path(tempfile.mkdtemp(prefix="mmseqs_mm_dr_", dir=temporary_root))
++    work = Path(tempfile.mkdtemp(prefix="mmseqs_hs_mm_", dir=temporary_root))
+     print(f"Working directory: {work}", flush=True)
+     try:
+         for sid, path in FASTAS.items():
+             # Explicit nucleotide databases: do not interpret cDNA as protein.
+             run("mmseqs", "createdb", path, work / sid, "--dbtype", 2)
+ 
+-        for query, target in [("mm", "dr"), ("dr", "mm")]:
++        for query, target in [("hs", "mm"), ("mm", "hs")]:
+             result = work / f"{query}_{target}_result"
+             raw = work / f"{query}_{target}_raw.tsv"
+             run("mmseqs", "search", work / query, work / target, result,
+@@ -122,7 +124,7 @@
+ 
+         # Publish the two finished maps together, separately from your BLAST maps.
+         OUT.mkdir(parents=True)
+-        for filename in ("mm_to_dr.txt", "dr_to_mm.txt"):
++        for filename in ("hs_to_mm.txt", "mm_to_hs.txt"):
+             shutil.copyfile(work / filename, OUT / filename)
+         with (OUT / "mmseqs_version.txt").open("w") as handle:
+             subprocess.run(["mmseqs", "version"], check=True, stdout=handle)

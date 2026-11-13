@@ -1,0 +1,129 @@
+--- /home/ubuntu/liver_cross_species/BH2026-23-single-cell/WP2/scripts/02_build_samap_fastas.py	2026-11-11 11:46:30.390297424 +0000
++++ 02_build_samap_fastas_liver.py	2026-11-11 12:04:01.356000000 +0000
+@@ -11,7 +11,10 @@
+ # CONFIGURATION
+ # ============================================================
+ 
+-ROOT = Path("path/to/WP2")
++# LIVER ADAPTATION (2026-11-11): copied from fbastian/BH2026-23-single-cell WP2/scripts (commit in
++# UPSTREAM_COMMIT.txt). Changes: paths, species = human HLiCA (GENCODE v48) + mouse Guilliams 2022 (GENCODE vM18 =
++# Ensembl 93), gene fields of our objects, GENCODE parser accepts human IDs. Naming + transcript choice unchanged.
++ROOT = Path("/mnt/masld_vault/cross_species/samap_maps/liver_hsmm")
+ 
+ RAW = ROOT / "refs" / "raw"
+ OUT = ROOT / "refs" / "samap"
+@@ -26,33 +29,29 @@
+ # ------------------------------------------------------------
+ 
+ HUMAN_H5AD = Path(
+-    "/PATH/to/raw_h5ad_folder/adata_skm_lineage_20210916.h5ad"
++    "/mnt/masld_vault/geo/cxg-059202e1-1f1b-483f-9151-f3a25a380c39/HLiCA_human_liver_all_cells.h5ad"
+ )
+ 
+ MOUSE_H5AD = Path(
+-    "/PATH/to/raw_h5ad_folder/MusMusculus_atlas_musclecells.h5ad"
+-)
+-
+-ZEBRAFISH_H5AD = Path(
+-    "/PATH/to/raw_h5ad_folder/Zebrafish_dev_atlas.h5ad"
++    "/mnt/masld_vault/cross_species/guilliams2022/01_raw/guilliams2022_fig1b_raw.h5ad"
+ )
+ 
+ 
+ CONFIG = {
+-    "hu": {
++    "hs": {
+         "name": "human",
+         "h5ad": HUMAN_H5AD,
+ 
+         "fasta": (
+             RAW
+-            / "Homo_sapiens.GRCh38.Ensembl93.cdna.all.fa.gz"
++            / "gencode.v48.transcripts.fa.gz"
+         ),
+ 
+-        "fasta_format": "ensembl",
++        "fasta_format": "gencode",
+ 
+         "output": (
+             OUT
+-            / "human.GRCh38.Ensembl93.samap.fa"
++            / "human.GRCh38.GENCODEv48.samap.fa"
+         ),
+     },
+ 
+@@ -62,31 +61,14 @@
+ 
+         "fasta": (
+             RAW
+-            / "Mus_musculus.GRCm38.GENCODEvM12.transcripts.fa.gz"
++            / "gencode.vM18.transcripts.fa.gz"
+         ),
+ 
+         "fasta_format": "gencode",
+ 
+         "output": (
+             OUT
+-            / "mouse.GRCm38.GENCODEvM12.samap.fa"
+-        ),
+-    },
+-
+-    "zf": {
+-        "name": "zebrafish",
+-        "h5ad": ZEBRAFISH_H5AD,
+-
+-        "fasta": (
+-            RAW
+-            / "Danio_rerio.GRCz11.Ensembl116.cdna.all.fa.gz"
+-        ),
+-
+-        "fasta_format": "ensembl",
+-
+-        "output": (
+-            OUT
+-            / "zebrafish.GRCz11.Ensembl116.samap.fa"
++            / "mouse.GRCm38.GENCODEvM18.samap.fa"
+         ),
+     },
+ }
+@@ -196,7 +178,7 @@
+     )
+ 
+     if not gene_id.startswith(
+-        "ENSMUSG"
++        ("ENSMUSG", "ENSG")
+     ):
+         return None, None
+ 
+@@ -221,17 +203,18 @@
+         backed="r",
+     )
+ 
+-    if species == "hu":
++    # liver objects: var_names = Ensembl IDs; symbols in var['feature_name'] (HLiCA, CxG) / var['symbol'] (mouse)
++    if species == "hs":
+ 
+         gene_id = pd.Series(
+-            adata.var["gene_ids"].astype(str).values
++            adata.var_names.astype(str)
+         )
+ 
+         gene_symbol = pd.Series(
+-            adata.var_names.astype(str)
++            adata.var["feature_name"].astype(str).values
+         )
+ 
+-    elif species in {"mm", "zf"}:
++    elif species == "mm":
+ 
+         gene_id = pd.Series(
+             adata.var_names.astype(str)
+@@ -239,7 +222,7 @@
+ 
+         gene_symbol = pd.Series(
+             adata.var[
+-                "gene_short_name"
++                "symbol"
+             ].astype(str).values
+         )
+ 

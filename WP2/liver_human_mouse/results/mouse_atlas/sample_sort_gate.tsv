@@ -1,0 +1,47 @@
+sample	gsm	gate	title
+ABU11	GSM5764242	nuclei	Healthy Mouse Liver Nuclei_Mouse_001_Sample_001
+ABU12	GSM5764243	nuclei	Healthy Mouse Liver Nuclei_Mouse_001_Sample_002
+ABU13	GSM5764244	nuclei	Healthy Mouse Liver Nuclei_Mouse_001_Sample_003
+ABU17	GSM5764245	nuclei	Healthy Mouse Liver Nuclei_Mouse_002_Sample_001
+ABU18	GSM5764246	nuclei	Healthy Mouse Liver Nuclei_Mouse_003_Sample_001
+ABU19	GSM5764247	nuclei	Healthy Mouse Liver Nuclei_Mouse_002_Sample_002
+ABU1	GSM5764248	nuclei	Healthy Mouse Liver Nuclei_Mouse_004_Sample_001
+ABU20	GSM5764249	nuclei	Healthy Mouse Liver Nuclei_Mouse_003_Sample_002
+ABU21	GSM5764250	nuclei	Healthy Mouse Liver Capsule Nuclei_Mouse_001_Sample_001
+ABU2	GSM5764251	nuclei	Healthy Mouse Liver Nuclei_Mouse_004_Sample_002
+ABU7	GSM5764252	nuclei	Healthy Mouse Liver Nuclei_Mouse_004_Sample_003
+ABU9	GSM5764253	nuclei	Healthy Mouse Liver Nuclei_Mouse_004_Sample_004
+ARE1	GSM5764254	myeloid	Standard diet fed (12 weeks) Liver Myeloid cells_Mouse_001_Sample_001
+ARE6	GSM5764255	CD45+	Standard diet fed (12 weeks) Liver CD45+ cells_Mouse_001_Sample_001
+ARE7	GSM5764256	CD45+	Standard diet fed (12 weeks) Liver CD45+ cells_Mouse_001_Sample_002
+ARE8	GSM5764257	CD45+	Standard diet fed (12 weeks) Liver CD45+ cells_Mouse_001_Sample_003
+CISE12	GSM5764258	CD45+	PBS Oral Gavage, 24hours, Liver CD45+ cells_Mouse_001_Sample_001
+CISE13	GSM5764259	myeloid	PBS Oral Gavage, 24hours, Liver Myeloid cells_Mouse_001_Sample_001
+CS114	GSM5764260	CD45-	Standard diet fed (12 weeks) Liver CD45- cells_Mouse_002_Sample_001
+CS115	GSM5764261	CD45+	Standard diet fed (12 weeks) Liver CD45+ cells_Mouse_002_Sample_001
+CS14	GSM5764262	myeloid	Standard diet fed (12 weeks) Liver monos+macs_Mouse_003_Sample_001
+CS16	GSM5764263	myeloid	Standard diet fed (12 weeks) Liver DCs_Mouse_003_Sample_001
+CS48	GSM5764264	hepatocytes	PBS Oral Gavage, 24hours, Liver Hepatocytes_Mouse_002_Sample_001
+CS52	GSM5764265	CD45-	PBS Oral Gavage, 24hours, Liver CD45- cells_Mouse_002_Sample_001
+CS53	GSM5764266	CD45+	PBS Oral Gavage, 24hours, Liver CD45+ cells_Mouse_002_Sample_001
+CS62	GSM5764267	CD45+	PBS Oral Gavage, 24hours, Liver CD45+ Lineage-  cells_Mouse_002_Sample_001
+CS88	GSM5764268	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_001_Sample_001
+CS89	GSM5764269	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_001_Sample_001
+CS90	GSM5764270	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_002_Sample_001
+CS91	GSM5764271	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_002_Sample_001
+CS92	GSM5764272	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_001_Sample_002
+CS93	GSM5764273	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_001_Sample_002
+CS94	GSM5764274	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_002_Sample_002
+CS95	GSM5764275	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_002_Sample_002
+CS96	GSM5764276	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_001_Sample_003
+CS97	GSM5764277	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_001_Sample_003
+CS98	GSM5764278	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_002_Sample_003
+CS99	GSM5764279	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_002_Sample_003
+CS136	GSM5764280	CD45+	Healthy Mouse Liver CD45+ Cells_Pre-stained_Mouse_003_Sample_001
+CS137	GSM5764281	CD45-	Healthy Mouse Liver CD45- Cells_Pre-stained_Mouse_003_Sample_001
+CS138	GSM5764282	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_003_Sample_002
+CS139	GSM5764283	CD45-	Healthy Mouse Liver CD45- Cells_Mouse_003_Sample_002
+CS140	GSM5764284	hepatocytes	Healthy Mouse Liver Hepatocytes_Mouse_003_Sample_001
+CS141	GSM5764285	CD45+	Healthy Mouse Liver CD45+ Cells_Mouse_004_Sample_001
+CS142	GSM5764286	CD45+	Healthy Mouse Liver Capsule CD45+ Cells_Mouse_005_Sample_001
+CS144	GSM5764287	total_live	Healthy Mouse Liver_Stained with human Abs_Mouse_003_Sample_001

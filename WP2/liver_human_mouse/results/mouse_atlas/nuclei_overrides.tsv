@@ -1,0 +1,7 @@
+# Manual cluster overrides (TotalVI draft Leiden r3), user decision 2026-11-11. Applied to the whole cluster.
+# Evidence = mean log-normalised marker expression in the nuclei of the cluster (07_clean, cleaned counts).
+leiden_totalvi_r3	annotation_clean	annotation_curated	flag	evidence
+4	Endothelial	Hepatocyte	possible_doublet_hep_LSEC	Alb 3.16 Cyp2e1 1.72 Cyp2f2 0.94 with Stab2 1.53 Kdr 0.45; 95% nuclei
+76	HsPCs	Cholangiocyte		Krt19 0.88 Spp1 0.52, no Kit/Cd34; 100% nuclei
+0	Fibroblast	unresolved	check_after_reintegration	Alb 2.71 with Reln 1.62 Dcn 0.88; 92% nuclei
+62	Neutrophil	unresolved	check_after_reintegration	no S100a8/Retnlg; Dcn 0.95 Krt19 0.34; 57% nuclei
