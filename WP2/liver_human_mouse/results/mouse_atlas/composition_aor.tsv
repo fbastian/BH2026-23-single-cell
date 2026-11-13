@@ -1,0 +1,20 @@
+annotation_aor	cell	nucleus	total	pct
+Hepatocyte	28880	12789	41669	17.77
+Endothelial	48424	2805	51229	21.84
+Fibroblast	449	2577	3026	1.29
+Mesothelial	358	1	359	0.15
+Cholangiocyte	1190	794	1984	0.85
+KC	47366	984	48350	20.61
+Monocyte	18290	22	18312	7.81
+Neutrophil	4299	3	4302	1.83
+Basophil	163	0	163	0.07
+cDC1	7532	26	7558	3.22
+cDC2	7901	8	7909	3.37
+Mig. cDCs	840	3	843	0.36
+Transitional DC	735	0	735	0.31
+pDCs	10972	16	10988	4.68
+B cell	8778	127	8905	3.8
+T cell	13951	4	13955	5.95
+NK cell	2260	0	2260	0.96
+ILC1	5041	105	5146	2.19
+unresolved	129	6730	6859	2.92

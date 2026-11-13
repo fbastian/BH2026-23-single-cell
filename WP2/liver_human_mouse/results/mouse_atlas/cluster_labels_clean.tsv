@@ -1,0 +1,70 @@
+	n_cells	z_group	frac_nucleus	label	score	second	margin	low_margin	label_draft
+0	3824	nucleus	0.9239	Fibroblast	0.223	Hepatocyte	0.04695	True	Fibroblast
+1	8005	cell	0.04522	Hepatocyte	0.7442	HsPCs	0.8568	False	Hepatocyte
+2	976	cell	0.003074	KC	0.3638	cDC1	0.2861	True	KC
+3	4432	cell	0.02888	Hepatocyte	0.1305	Cholangiocyte	0.2873	True	Hepatocyte
+4	4525	nucleus	0.9472	Endothelial	1.588	B cell	0.1968	True	Hepatocyte
+6	14333	cell	0.003768	KC	2.051	cDC1	2.018	False	KC
+7	5669	cell	0.001058	cDC2	2.456	cDC1	1.128	False	cDC2
+8	9992	nucleus	0.9745	Hepatocyte	1.123	NK cell	1.315	False	Hepatocyte
+9	7905	cell	0.003795	cDC1	3.399	cDC2	2.246	False	cDC1
+10	6153	cell	0.009426	KC	2.004	Endothelial	1.12	False	KC
+11	5273	cell	0.0009482	Monocyte	1.91	cDC2	0.8486	False	Monocyte
+13	8254	cell	0.0001212	Monocyte	2.826	cDC2	2.161	False	Monocyte
+14	11662	cell	0.0007717	KC	2.263	cDC1	2.225	False	KC
+15	16092	cell	0.06687	Endothelial	2.594	HsPCs	2.613	False	Endothelial
+16	4772	cell	0.00922	Hepatocyte	0.8238	Cholangiocyte	0.8958	False	Hepatocyte
+17	2584	cell	0.005805	cDC2	0.7854	Monocyte	0.03238	True	Monocyte
+18	5720	cell	0.003497	Monocyte	2.39	cDC2	1.52	False	Monocyte
+19	4761	cell	0.0021	KC	2.282	cDC1	2.199	False	KC
+20	1035	nucleus	0.7662	Cholangiocyte	1.823	HsPCs	1.403	False	Cholangiocyte
+21	17055	cell	0.03307	Endothelial	1.974	HsPCs	2.09	False	Endothelial
+22	1009	cell	0.003964	KC	1.221	Endothelial	0.7766	False	KC
+24	12524	cell	0.0007186	Endothelial	2.573	HsPCs	2.694	False	Endothelial
+25	15867	cell	0.03958	Endothelial	2.336	HsPCs	2.444	False	Endothelial
+26	1323	cell	0.1232	Fibroblast	4.855	HsPCs	4.187	False	Fibroblast
+27	4560	cell	0.0004386	Neutrophil	5.883	Basophil	4.498	False	Neutrophil
+28	9445	cell	0.001906	KC	2.908	cDC1	2.653	False	KC
+29	10582	cell	0.0004725	Hepatocyte	1.752	Cholangiocyte	1.842	False	Hepatocyte
+30	6705	cell	0.01148	T cell	2.938	ILC1	1.096	False	T cell
+31	8848	cell	0.002147	B cell	4.603	cDC2	4.103	False	B cell
+32	1424	cell	0.02669	Endothelial	1.685	HsPCs	1.727	False	Endothelial
+33	8862	cell	0.09151	KC	3.055	Monocyte	2.856	False	KC
+34	678	cell	0.001475	Basophil	4.247	Neutrophil	1.33	False	Basophil
+35	10481	cell	0.0228	Endothelial	2.596	HsPCs	2.579	False	Endothelial
+36	1064	cell	0.00282	Mig. cDCs	5.855	cDC2	4.947	False	Mig. cDCs
+37	4124	cell	0.002425	Hepatocyte	1.873	Cholangiocyte	1.995	False	Hepatocyte
+38	847	cell	0.001181	Monocyte	1.052	KC	0.02081	True	KC
+40	5416	cell	0.001662	ILC1	4.601	NK cell	1.644	False	ILC1
+42	5003	cell	0.009194	T cell	2.38	NK cell	1.497	False	T cell
+43	3517	nucleus	0.9744	Hepatocyte	1.031	NK cell	1.277	False	Hepatocyte
+44	932	cell	0.0633	cDC2	2.083	cDC1	0.7986	False	cDC2
+46	2757	nucleus	0.9478	Fibroblast	2.136	T cell	1.939	False	Fibroblast
+47	877	cell	0.005701	T cell	2.503	ILC1	0.9714	False	T cell
+48	2925	cell	0.001709	Endothelial	2.334	HsPCs	2.477	False	Endothelial
+49	455	cell	0	pDCs	0.5477	cDC1	0.1481	True	pDCs
+51	937	cell	0	KC	1.897	Monocyte	1.902	False	KC
+52	1466	cell	0.002046	Monocyte	1.264	KC	0.5733	False	Monocyte
+53	3758	cell	0.001597	Hepatocyte	1.44	Cholangiocyte	1.529	False	Hepatocyte
+54	1552	cell	0.1939	Endothelial	1.401	HsPCs	0.9969	False	Endothelial
+55	7988	cell	0.001878	Hepatocyte	2.15	Cholangiocyte	2.197	False	Hepatocyte
+56	7854	cell	0.001146	pDCs	4.499	B cell	3.683	False	pDCs
+57	504	cell	0.2143	B cell	3.203	T cell	1.955	False	B cell
+58	4490	cell	0.006013	Hepatocyte	1.742	Cholangiocyte	1.807	False	Hepatocyte
+59	385	cell	0.2338	Hepatocyte	3.464	HsPCs	3.197	False	Hepatocyte
+60	2522	cell	0.002379	NK cell	5.081	ILC1	1.853	False	NK cell
+61	8390	cell	0.001311	Hepatocyte	1.972	Cholangiocyte	1.969	False	Hepatocyte
+62	1058	nucleus	0.5681	Neutrophil	1.061	Mig. cDCs	0.09388	True	HsPCs
+63	1009	cell	0	pDCs	1.696	cDC2	0.7089	False	pDCs
+64	495	cell	0.00202	B cell	1.069	pDCs	0.7317	False	B cell
+65	366	cell	0	Endothelial	1.036	Cholangiocyte	1.189	False	Endothelial
+66	967	cell	0	Hepatocyte	1.897	Cholangiocyte	2.02	False	Hepatocyte
+67	2431	cell	0.0004114	Hepatocyte	1.887	Cholangiocyte	1.905	False	Hepatocyte
+68	2279	cell	0.0008776	Fibroblast	5.701	HsPCs	5.258	False	Fibroblast
+69	1511	cell	0	T cell	2.415	NK cell	1.836	False	T cell
+70	545	cell	0.001835	Endothelial	1.112	HsPCs	0.8512	False	Endothelial
+72	145	cell	0	KC	0.3377	Endothelial	0.3691	True	KC
+73	3661	cell	0	pDCs	4.041	cDC2	3.235	False	pDCs
+74	1243	cell	0	Cholangiocyte	7.387	HsPCs	3.025	False	Cholangiocyte
+75	1653	cell	0	T cell	2.326	NK cell	2.182	False	T cell
+76	603	nucleus	0.995	HsPCs	2.029	Cholangiocyte	1.438	False	HsPCs

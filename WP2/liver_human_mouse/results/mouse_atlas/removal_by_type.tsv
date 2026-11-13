@@ -1,0 +1,18 @@
+annotation_curated	bridge	dx_lt200	kept	scDblFinder_doublet	sort_mismatch
+B cell	15	54	8951	624	203
+Basophil	52	2	257	296	71
+Cholangiocyte	26	25	2519	261	50
+Endothelial	153	1299	51200	8711	17468
+Fibroblast	114	290	3060	894	2001
+Hepatocyte	692	5829	44873	8478	18486
+ILC1	155	64	4878	239	80
+KC	488	802	48374	8168	451
+Mig. cDCs	33	1	851	167	12
+Monocyte	372	17	18418	2722	31
+NK cell	39	0	2315	120	48
+Neutrophil	38	0	4197	311	14
+T cell	80	30	14138	639	862
+cDC1	42	2	7526	323	12
+cDC2	322	15	7844	990	14
+pDCs	45	7	11762	1125	40
+unresolved	434	85	3389	974	0

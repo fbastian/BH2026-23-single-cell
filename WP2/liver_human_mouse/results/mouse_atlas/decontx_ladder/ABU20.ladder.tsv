@@ -1,0 +1,5 @@
+sample	setting	n	median_contamination	nonepi_Alb_cp10k_raw	nonepi_Alb_cp10k_dx	nonepi_Alb_removed	hep_Alb_kept	hep_umis_kept	nonepi_umis_kept	lt200
+ABU20	default_est	7514	0.04967	16.04	13.26	0.6715	0.6846	0.6718	0.4436	205
+ABU20	1_100	7514	0.3036	16.04	4.808	0.8759	0.6064	0.5894	0.3201	111
+ABU20	1_300	7514	0.4614	16.04	0.4124	0.9757	0.6016	0.5292	0.3947	328
+ABU20	1_1000	7514	0.497	16.04	0.2799	0.9824	0.6031	0.5108	0.3933	948
