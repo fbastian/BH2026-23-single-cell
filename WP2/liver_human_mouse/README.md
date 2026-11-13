@@ -158,11 +158,11 @@ and silent failures. The analysis points below are open caveats; none of them ha
 
 **Executed check (12–13 Nov):**
 - Executed copies, with outputs, are in [`notebooks/executed/`](notebooks/executed/).
-- Notebooks 02–07 rebuilt every compared table identically to the record (maximum difference 0). The GPU Leiden
+- Notebooks 02–08 rebuilt every compared table identically to the record (maximum difference 0). The GPU Leiden
   clusters and DC subclusters matched 100 %.
 - Notebook 01 rebuilt the raw object identically (389,056 × 31,053, sample table equal). It is shipped unexecuted: its
   executed copy carries a guard stop caused by an unrelated edit made during the run.
-- Notebook 08 (figures, table) is executing at the time of this commit; it is added in a follow-up commit.
+- Notebook 08 rebuilt Table 1 identically; Figs 1–3 pass the Nature font and size audit (the unintegrated UMAP is recomputed on GPU).
 - The heavy notebooks 09–12 are shipped as code and have not been re-executed; their outputs are the stored results.
 
 ## References

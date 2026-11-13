@@ -115,6 +115,7 @@ def _record_changes(before):
 def run(script, env, args=(), gpu=None, threads=None, path_prefix=None, cwd=None, tail=25):
     """Run WORK/<script> in its conda env; log to WORK/logs/<script>.log; fail loudly; never touch RECORD."""
     envv = os.environ.copy(); envv["MPLBACKEND"] = "Agg"   # the kernel's inline backend is not valid in a subprocess
+    envv["PATH"] = f"{ENVS}/{env}/bin:" + envv["PATH"]   # as conda activate does (e.g. pandoc for kableExtra; fix 2026-11-13)
     if gpu is not None: envv["CUDA_VISIBLE_DEVICES"] = str(gpu)
     if threads: envv.update({k: str(threads) for k in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")})
     if path_prefix: envv["PATH"] = path_prefix + ":" + envv["PATH"]
